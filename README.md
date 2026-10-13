@@ -31,9 +31,9 @@ Windows 运行安装程序；Mac 打开 DMG，将应用拖到 Applications。ZIP
 
 可以向能够联网、执行本机命令及操作桌面的 AI 发送：
 
-> 请帮我安装 GitHub 上 FeiXueOpen/map-data-studio。先读取 README 和 automation/mcp-manifest.json，识别我的系统和 CPU，下载对应最新 Release 并校验 SHA256，配置到我当前使用的豆包客户端，安装中文 Skill。保留其他 MCP 配置，完成后调用 get_status 验证。需要我填写高德密钥或确认系统权限时提示我。
+> 请帮我安装 GitHub 上 FeiXueOpen/map-data-studio。先读取 README 和 automation/mcp-manifest.json，识别我的系统和 CPU，下载对应最新 Release 并校验 SHA256，配置到我当前使用的豆包客户端，安装中文 Skill。保留其他 MCP 配置，完成后调用 get_status 验证。需要我填写高德密钥或确认系统权限时提示我。不能用CLI测试成功代替豆包会话的MCP调用。
 
-仅能聊天、不能访问本机的 AI 无法安装本机应用。豆包未核实到公开自动注册接口：具备界面操作能力的 AI 可继续新建连接器；只运行脚本会生成配置和技能文件，**不等于豆包已注册、已连接**。首次密钥、系统确认和本次会话 AI 控制开关仍需用户配合。
+仅能聊天、不能访问本机的 AI 无法安装本机应用。豆包未核实到公开自动注册接口：具备界面操作能力的 AI 可继续新建连接器；只运行脚本会生成配置和技能文件，**不等于豆包已注册、已连接**。首次密钥和系统启动确认仍需用户配合；v0.1.2起软件自动开启AI控制。
 
 安装脚本自动识别架构、读取最新 Release、校验 SHA256，安装到当前用户目录。请先下载查看脚本再运行。重复安装保留应用备份，不删除用户数据；已有同名 MCP 配置不强制覆盖。
 
@@ -76,7 +76,7 @@ PowerShell 若受组织执行策略限制，按组织规则处理，不必修改
 
 MCP 提供控制接口；Skill 提供中文流程说明，指导 AI 分页、等待、查证、映射和导出，推荐同时安装。Skill 不等于连接器；MCP 不会自己联网搜索或自动给空闲 AI 发起新一轮对话。
 
-1. 打开 Map Data Studio，“设置 → AI 控制 / MCP”点“开启 AI 控制”，每次重开软件都需开启。
+1. 打开 Map Data Studio。v0.1.2起工作台就绪后自动开启AI控制，设置页显示连接状态；无需人工开关。
 2. 在 AI 客户端添加连接器，优先 **stdio**。
 3. 安装 Release 的 `map-data-studio-skill.zip`，或使用仓库 `automation/map-data-studio` 技能目录。
 4. 重载 AI 会话/启用连接器，让 AI 调用 `get_status` 验证。
@@ -90,6 +90,16 @@ MCP 提供控制接口；Skill 提供中文流程说明，指导 AI 分页、等
 - 保存、在当前会话启用连接器，并在技能页导入中文技能 ZIP，再验证 `get_status`。
 
 HTTP 端口和令牌重新开启后会变化，需要更新 HTTP 连接器。客户端与软件应在同一电脑，不能把 127.0.0.1 当作云端服务地址。脚本生成的 stdio 配置在文档目录 `Map Data Studio/Resources/map-data-studio-mcp.json`；仅 HTTP 的版本仍以应用设置中的真实配置为准。不要把本机令牌提交到仓库或发送给远程服务。
+
+### 豆包专用安装口令
+
+> 请在豆包中安装 GitHub 上 FeiXueOpen/map-data-studio。按 README 和 automation/map-data-studio/references/doubao-install.md 使用豆包专用安装入口，下载最新系统版本并校验 SHA256。打开软件等待自动控制服务就绪，读取生成的 doubao-install-plan.json，通过豆包界面安装中文 Skill、添加或编辑同名 STDIO 连接器，命令和每条参数分别填写，保留其他配置。确认操作清单加载并启用，再新建会话仅通过该 MCP 调用 get_status，不用 CLI 代替。分别报告本地服务、连接器注册、会话调用三项结果；若会话未注入工具，不说全部完成。
+
+Mac专用入口：下载查看 `scripts/install/install-doubao.sh` 后运行 `bash install-doubao.sh`。Windows专用入口为 `scripts/install/install-doubao.ps1`。支持版本指定、dry-run和不启动应用选项，详见脚本参数。
+
+计划文件位于文档目录 `Map Data Studio/Resources/doubao-install-plan.json`，包含当前电脑的实际程序路径、连接文件路径、命令及独立参数。Mac兼容入口用 `/usr/bin/env`；第一个参数是原生程序路径，其后 `--mcp-stdio`、`--connection-file`、实际文件路径，各填一行，无需额外shell引号。详见[豆包安装与验收](automation/map-data-studio/references/doubao-install.md)。
+
+“连接器运行失败”和“会话没有工具”需分别排查。先打开工作台、重新保存连接器以刷新握手，确认详情页操作清单；必要时重启豆包并新建会话验证。某版本若仍不注入工具，MCP服务端无法强行把工具塞入模型。Skill可按用户允许使用CLI完成工作，但应明确标为CLI控制。
 
 ### Codex
 

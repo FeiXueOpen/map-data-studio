@@ -36,5 +36,8 @@ mkdir -p "$HOME/Applications"
 if [ -e "$target" ]; then mv "$target" "$target.backup-$(date +%Y%m%d%H%M%S)"; fi
 mv "$app" "$target"
 "$target/Contents/Resources/image-runtime/node" "$target/Contents/Resources/automation/setup-ai.mjs" --client "$client" --command "$target/Contents/MacOS/map-data-studio"
-if [ "$launch" = yes ]; then open "$target" || echo '请用户从Finder启动并完成系统首次打开确认。'; fi
+if [ "$launch" = yes ]; then
+ open "$target" || echo '请用户从Finder启动并完成系统首次打开确认。'
+ "$target/Contents/Resources/image-runtime/node" "$target/Contents/Resources/automation/check-connection.mjs" "$target/Contents/MacOS/map-data-studio" || echo '应用已安装，但本地服务预检未通过，请完成首次打开确认后重试。'
+fi
 printf '客户端已安装：%s\n' "$target"

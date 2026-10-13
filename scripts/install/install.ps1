@@ -26,6 +26,10 @@ try {
  Move-Item $app $target
  & (Join-Path $target 'image-runtime/node.exe') (Join-Path $target 'automation/setup-ai.mjs') --client $Client --command (Join-Path $target 'map-data-studio.exe')
  if ($LASTEXITCODE -ne 0) { throw 'AI配置失败，安装文件已保留，可依README手动配置' }
- if (!$NoOpen) { Start-Process (Join-Path $target 'map-data-studio.exe') }
+ if (!$NoOpen) {
+  Start-Process (Join-Path $target 'map-data-studio.exe')
+  & (Join-Path $target 'image-runtime/node.exe') (Join-Path $target 'automation/check-connection.mjs') (Join-Path $target 'map-data-studio.exe')
+  if ($LASTEXITCODE -ne 0) { Write-Warning '应用已安装，但本地服务预检未通过，请完成首次打开确认后重试。' }
+ }
  Write-Output "客户端已安装：$target"
 } finally { Remove-Item -LiteralPath $taskDir -Recurse -Force }

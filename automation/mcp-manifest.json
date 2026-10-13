@@ -4,16 +4,31 @@
   "repository": "https://github.com/FeiXueOpen/map-data-studio",
   "releases": "https://github.com/FeiXueOpen/map-data-studio/releases/latest",
   "skill": "automation/map-data-studio/SKILL.md",
-  "installers": {"macos": "scripts/install/install.sh", "windows": "scripts/install/install.ps1"},
-  "transports": ["stdio", "streamable-http"],
-  "stdioArgs": ["--mcp-stdio"],
+  "installers": {
+    "macos": "scripts/install/install.sh",
+    "windows": "scripts/install/install.ps1"
+  },
+  "transports": [
+    "stdio",
+    "streamable-http"
+  ],
+  "stdioArgs": [
+    "--mcp-stdio"
+  ],
   "requiresSystemNodeOrPython": false,
   "agentInstallInstructions": [
     "读取README，确认本机操作系统及CPU架构，下载同架构Release安装资源和SHA256，不下载源码让普通用户编译。",
     "使用安装脚本的client选项安装，并生成相应MCP配置和技能；保留其他服务器配置，不覆盖同名既有配置。",
     "Codex和Claude Desktop支持配置文件接入；豆包连接器通过可用的客户端界面添加，不猜测或修改未公开的内部数据库。",
-    "首次用户配置自己的高德Web服务Key、Web JS Key和securityJsCode，并在本次软件会话开启AI控制。系统首次启动确认由用户完成。",
+    "首次用户配置自己的高德Web服务Key、Web JS Key和securityJsCode，；软件启动后自动开启AI控制。系统首次启动确认由用户完成。",
     "优先stdio，命令是安装后的原生程序，参数--mcp-stdio；无需安装Node或Python。HTTP使用设置里的实际URL与Authorization，不把控制令牌发给远程服务器或提交到仓库。",
-    "重载AI客户端或在当前会话启用连接器，调用get_status验证成功，再按SKILL.md查询和导出。不能在仅下载文件或生成配置后宣称MCP已连接。"
-  ]
+    "重载AI客户端或在当前会话启用连接器，调用get_status验证成功，再按SKILL.md查询和导出。不能在仅下载文件或生成配置后宣称MCP已连接。",
+    "豆包使用专用安装入口，读取生成的doubao-install-plan.json，界面确认操作清单与开关，并在新会话真实通过MCP调用get_status。CLI成功不能冒充MCP验证通过；当前会话没有工具则如实报告注入未完成。"
+  ],
+  "doubaoInstallers": {
+    "macos": "scripts/install/install-doubao.sh",
+    "windows": "scripts/install/install-doubao.ps1"
+  },
+  "autoStartControl": true,
+  "doubaoGuide": "automation/map-data-studio/references/doubao-install.md"
 }

@@ -21,5 +21,7 @@ test('Claude保留其他服务与已有同名服务',()=>fixture(async root=>{
 test('豆包生成接入文件而不虚构注册；dry-run不写入配置',()=>fixture(async root=>{
  setup(root,'codex',true);assert.deepEqual(await readdir(root),[])
  const output=setup(root,'doubao');assert.ok(output.includes('界面新建连接器'));assert.ok(!(await readdir(root)).includes('.codex'))
- const recipe=JSON.parse(await readFile(join(root,'Documents/Map Data Studio/Resources/map-data-studio-mcp.json'),'utf8'));assert.equal(recipe.mcpServers['map-data-studio'].command,process.execPath)
+ const recipe=JSON.parse(await readFile(join(root,'Documents/Map Data Studio/Resources/map-data-studio-mcp.json'),'utf8'));const entry=recipe.mcpServers['map-data-studio'];assert.equal(entry.command,process.platform==='darwin'?'/usr/bin/env':process.execPath)
+ assert.ok(entry.args.includes('--connection-file'));assert.ok(entry.args.includes('--mcp-stdio'))
+ const plan=JSON.parse(await readFile(join(root,'Documents/Map Data Studio/Resources/doubao-install-plan.json'),'utf8'));assert.deepEqual(plan.connector.args,entry.args);assert.equal(plan.autoStartControl,true);assert.ok(plan.verification.some(v=>v.includes('不能用CLI')))
 }))

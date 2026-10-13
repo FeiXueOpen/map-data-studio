@@ -9,9 +9,9 @@ async function load() {
   if (!isTauri()) return
   try { info.value = await invoke<Info>('automation_info') } catch { message.value = '无法读取 AI 控制配置' }
 }
-async function toggle() {
+async function retry() {
   busy.value = true; message.value = ''
-  try { info.value = await invoke<Info>('automation_enable', { enabled: !info.value?.enabled }); message.value = info.value.enabled ? 'AI 控制已开启' : 'AI 控制已关闭；已启动的业务任务可在工作台取消。' }
+  try { info.value = await invoke<Info>('automation_enable', { enabled: true }); message.value = 'AI 控制连接已恢复' }
   catch (cause) { message.value = typeof cause === 'string' ? cause : '控制服务启动失败' }
   finally { busy.value = false }
 }
@@ -30,13 +30,13 @@ onMounted(load)
 </script>
 <template>
   <section class="automation-settings">
-    <div class="automation-heading"><h3>AI 控制 / MCP</h3><button class="export-button" type="button" :disabled="busy || !isTauri()" @click="toggle">{{ busy ? '正在切换…' : info?.enabled ? '关闭 AI 控制' : '开启 AI 控制' }}</button></div>
-    <p class="muted">AI 操作同步到当前工作台。支持 MCP stdio、Streamable HTTP 和 CLI。每次打开软件后手动开启；控制程序已内置，无需安装 Node.js 或其他运行环境。</p>
+    <div class="automation-heading"><h3>AI 控制 / MCP</h3><button v-if="info && !info.enabled" class="export-button" type="button" :disabled="busy || !isTauri()" @click="retry">{{ busy ? '正在重试…' : '重试连接' }}</button></div>
+    <p class="muted">软件启动后自动开启 AI 控制，退出时关闭。支持 MCP stdio、Streamable HTTP 和 CLI，无需手动开启或安装额外运行环境。查询、采集和导出仍由用户或 AI 指令发起。</p>
     <template v-if="info">
-      <p class="automation-address">{{ info.enabled ? info.endpoint : '当前未开启' }}</p>
+      <p class="automation-address">{{ info.enabled ? `已自动连接 · ${info.endpoint}` : '控制服务尚未就绪，可重试连接' }}</p>
       <div class="automation-actions"><button type="button" :disabled="!info.enabled" @click="copy('stdio')">复制 stdio 配置</button><button type="button" :disabled="!info.enabled" @click="copy('http')">复制 HTTP 配置</button><button type="button" @click="copy('cli')">复制 CLI 命令</button><button type="button" @click="copy('skill')">复制 Skill 路径</button></div>
       <details><summary>程序与连接文件位置</summary><p class="automation-address">内置程序：{{ info.executable }}</p><p class="automation-address">连接文件：{{ info.connectionFile }}</p><p class="automation-address">Skill：{{ info.skillPath }}</p></details>
-      <p class="muted">服务仅监听 127.0.0.1，需要独立令牌。HTTP 端口和令牌在重新开启后变化；stdio / CLI 自动读取新的连接文件。</p>
+      <p class="muted">服务仅监听 127.0.0.1，需要独立令牌。软件重启后 HTTP 端口和令牌会变化；stdio / CLI 自动读取新的连接文件。</p>
     </template>
     <p v-if="message" class="muted" role="status">{{ message }}</p>
   </section>
