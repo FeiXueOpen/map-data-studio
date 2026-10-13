@@ -7,7 +7,7 @@ on:
       tag:
         description: 版本标签，必须与项目版本一致，例如 v0.1.0
         required: true
-        default: v0.1.0
+        default: v0.1.1
 permissions:
   contents: write
 concurrency:
@@ -32,12 +32,12 @@ jobs:
           - label: Mac Apple Silicon
             runner: macos-15
             target: aarch64-apple-darwin
-            bundles: dmg
+            bundles: app,dmg
             executable: src-tauri/target/debug/map-data-studio
           - label: Mac Intel
             runner: macos-15-intel
             target: x86_64-apple-darwin
-            bundles: dmg
+            bundles: app,dmg
             executable: src-tauri/target/debug/map-data-studio
     runs-on: ${{ matrix.runner }}
     steps:
