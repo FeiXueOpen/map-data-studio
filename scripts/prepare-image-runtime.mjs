@@ -21,13 +21,14 @@ const cache=resolve('.cache/image-runtime');await mkdir(cache,{recursive:true})
 const extension=platform==='win32'?'zip':'tar.gz'
 const filename=`node-v${nodeVersion}-${platform==='win32'?'win':platform}-${arch}.${extension}`
 const url=`https://nodejs.org/dist/v${nodeVersion}`
-const sums=execFileSync('curl',['--fail','--silent','--show-error','--location','--max-time','60',`${url}/SHASUMS256.txt`],{encoding:'utf8'})
+const downloadFlags=['--fail','--silent','--show-error','--location','--retry','4','--retry-all-errors','--retry-delay','2','--retry-max-time','180','--connect-timeout','20']
+const sums=execFileSync('curl',[...downloadFlags,'--max-time','60',`${url}/SHASUMS256.txt`],{encoding:'utf8'})
 const expected=sums.split('\n').map(l=>l.trim().split(/\s+/)).find(l=>l[1]===filename)?.[0]
 if(!expected)throw new Error('官方 Node.js 清单中没有目标运行时')
 const archive=join(cache,filename)
 let bytes;try { bytes=await readFile(archive) } catch {}
 if(!bytes || createHash('sha256').update(bytes).digest('hex')!==expected){
- execFileSync('curl',['--fail','--silent','--show-error','--location','--max-time','300',`${url}/${filename}`,'-o',archive],{stdio:'inherit'})
+ execFileSync('curl',[...downloadFlags,'--max-time','300',`${url}/${filename}`,'-o',archive],{stdio:'inherit'})
  bytes=await readFile(archive)
 }
 if(createHash('sha256').update(bytes).digest('hex')!==expected)throw new Error('Node.js 运行时 SHA256 校验失败')
