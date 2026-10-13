@@ -1,0 +1,48 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Map Data Studio",
+  "version": "0.1.0",
+  "identifier": "com.mapdatastudio.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build && npm run prepare:image-runtime",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Map Data Studio",
+        "width": 1480,
+        "height": 920,
+        "minWidth": 1180,
+        "minHeight": 760,
+        "resizable": true,
+        "decorations": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../automation/": "automation/",
+      "image-runtime/": "image-runtime/",
+      "config.example.json": "config.example.json"
+    },
+    "macOS": {
+      "minimumSystemVersion": "13.5"
+    }
+  }
+}

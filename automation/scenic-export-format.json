@@ -1,0 +1,434 @@
+{
+  "name": "杭州标准景区表",
+  "sheetName": "景区数据",
+  "rowHeight": 20,
+  "columns": [
+    {
+      "column": 1,
+      "label": "省份",
+      "field": "province",
+      "width": 10.3916666666667,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 2,
+      "label": "城市",
+      "field": "city",
+      "width": 10.3916666666667,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 3,
+      "label": "区县",
+      "field": "district",
+      "width": 10.3916666666667,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 4,
+      "label": "景区名称",
+      "field": "name",
+      "width": 21.5,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 5,
+      "label": "基本简介",
+      "field": "custom:基本简介",
+      "width": 10.625,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 6,
+      "label": "热门指数",
+      "field": "custom:热门指数",
+      "width": 10.625,
+      "style": {},
+      "kind": "number"
+    },
+    {
+      "column": 7,
+      "label": "景区经度",
+      "field": "longitude",
+      "width": 10.625,
+      "style": {},
+      "kind": "number"
+    },
+    {
+      "column": 8,
+      "label": "景区纬度",
+      "field": "latitude",
+      "width": 10.625,
+      "style": {},
+      "kind": "number"
+    },
+    {
+      "column": 9,
+      "label": "景区地址",
+      "field": "address",
+      "width": 5.625,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 10,
+      "label": "电话",
+      "field": "tel",
+      "width": 5.625,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 11,
+      "label": "景区评分",
+      "field": "rating",
+      "width": 5.625,
+      "style": {},
+      "kind": "number"
+    },
+    {
+      "column": 12,
+      "label": "景区等级",
+      "field": "scenicLevel",
+      "width": 5.625,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 13,
+      "label": "预约小程序名称",
+      "field": "custom:预约小程序名称",
+      "width": 22.225,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 14,
+      "label": "微信小程序 appid",
+      "field": "custom:微信小程序 appid",
+      "width": 22.475,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 15,
+      "label": "预约时间",
+      "field": "custom:预约时间",
+      "width": 10.625,
+      "style": {
+        "numFmt": "h:mm",
+        "font": {
+          "size": 11,
+          "color": {
+            "theme": 1
+          },
+          "name": "宋体",
+          "charset": 134,
+          "scheme": "minor"
+        },
+        "border": {},
+        "fill": {
+          "type": "pattern",
+          "pattern": "none"
+        },
+        "alignment": {
+          "vertical": "middle"
+        }
+      },
+      "kind": "time"
+    },
+    {
+      "column": 16,
+      "label": "提前几天预约",
+      "field": "custom:提前几天预约",
+      "width": 10.625,
+      "style": {},
+      "kind": "number"
+    },
+    {
+      "column": 17,
+      "label": "预约难度",
+      "field": "custom:预约难度",
+      "width": 10.625,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 18,
+      "label": "开放时间",
+      "field": "openingHours",
+      "width": 10.625,
+      "style": {},
+      "kind": "openingHours"
+    },
+    {
+      "column": 19,
+      "label": "停止入园",
+      "field": "lastEntry",
+      "width": 10.625,
+      "style": {
+        "numFmt": "h:mm",
+        "font": {
+          "size": 11,
+          "color": {
+            "theme": 1
+          },
+          "name": "宋体",
+          "charset": 134,
+          "scheme": "minor"
+        },
+        "border": {},
+        "fill": {
+          "type": "pattern",
+          "pattern": "none"
+        },
+        "alignment": {
+          "vertical": "middle"
+        }
+      },
+      "kind": "time"
+    },
+    {
+      "column": 20,
+      "label": "闭馆时间",
+      "field": "closingTime",
+      "width": 10.625,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 21,
+      "label": "成人票",
+      "field": "custom:成人票",
+      "width": 10.625,
+      "style": {},
+      "kind": "price"
+    },
+    {
+      "column": 22,
+      "label": "学生票",
+      "field": "custom:学生票",
+      "width": 10.625,
+      "style": {},
+      "kind": "price"
+    },
+    {
+      "column": 23,
+      "label": "儿童票",
+      "field": "custom:儿童票",
+      "width": 10.625,
+      "style": {},
+      "kind": "price"
+    },
+    {
+      "column": 24,
+      "label": "老人票",
+      "field": "custom:老人票",
+      "width": 10.625,
+      "style": {},
+      "kind": "price"
+    },
+    {
+      "column": 25,
+      "label": "热门推荐",
+      "field": "custom:热门推荐",
+      "width": 76.35,
+      "style": {
+        "font": {
+          "size": 12,
+          "color": {
+            "argb": "FF133667"
+          },
+          "name": "宋体",
+          "charset": 134
+        },
+        "border": {},
+        "fill": {
+          "type": "pattern",
+          "pattern": "none"
+        },
+        "alignment": {
+          "vertical": "middle"
+        }
+      },
+      "kind": "text"
+    },
+    {
+      "column": 26,
+      "label": "费用明细",
+      "field": "custom:费用明细",
+      "width": 10.3916666666667,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 27,
+      "label": "小贴士",
+      "field": "custom:小贴士",
+      "width": 10.3916666666667,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 28,
+      "label": "交通指南",
+      "field": "custom:交通指南",
+      "width": 10.3916666666667,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 29,
+      "label": "内部交通",
+      "field": "custom:内部交通",
+      "width": 10.3916666666667,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 30,
+      "label": "游览时长",
+      "field": "custom:游览时长",
+      "width": 10.3916666666667,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 31,
+      "label": "最佳游览",
+      "field": "custom:最佳游览",
+      "width": 10.3916666666667,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 32,
+      "label": "周边推荐",
+      "field": "custom:周边推荐",
+      "width": 10.3916666666667,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 33,
+      "label": "适合人群",
+      "field": "custom:适合人群",
+      "width": 10.3916666666667,
+      "style": {},
+      "kind": "text"
+    },
+    {
+      "column": 34,
+      "label": "景区类型",
+      "field": "custom:景区类型",
+      "width": 10.3916666666667,
+      "style": {},
+      "kind": "text"
+    }
+  ],
+  "defaultRowHeight": 13.5,
+  "defaultColWidth": 10.3916666666667,
+  "enrichmentPolicy": {
+    "enabledByDefault": true,
+    "instruction": "AI执行景区Excel导出时，默认逐项补全模板缺失字段，不仅补简介。先整理高德开放时间及关联时间，再核实各票种、预约及攻略字段；用户无需额外说补票价。用户明确要求仅原始数据时跳过联网补全。",
+    "groups": [
+      {
+        "name": "时间",
+        "fields": [
+          "openingHours",
+          "lastEntry",
+          "closingTime"
+        ],
+        "rule": "按杭州格式整理：开放区间HH:mm-HH:mm；停止入园仅取明确规定，不从闭馆时间倒推。闭馆有明确规定时优先使用，否则营业区间结束仅标注为营业结束的推导值。多季节、星期、场次和临时关闭条件必须保留，不擅自选择一个时间。全天开放00:00-00:00，不假设停止入园。"
+      },
+      {
+        "name": "票价与费用",
+        "fields": [
+          "custom:成人票",
+          "custom:学生票",
+          "custom:儿童票",
+          "custom:老人票",
+          "custom:费用明细"
+        ],
+        "rule": "按用户票价示例：成人票、学生票仅填非负价格数字；儿童票、老人票可填价格 (简短年龄或身高条件)。以导出日期适用的基本门票为准，其他季节、证件、国籍、免票和套餐说明写费用明细。不得直接截取说明中的第一个数字，优惠需来源核实，未知留空；用户逐列规则优先。"
+      },
+      {
+        "name": "预约",
+        "fields": [
+          "custom:预约小程序名称",
+          "custom:微信小程序 appid",
+          "custom:预约时间",
+          "custom:提前几天预约",
+          "custom:预约难度"
+        ],
+        "rule": "核实当前预约渠道和放票规则，不编造appid、天数或难度；无需预约仅有明确来源才填写。"
+      },
+      {
+        "name": "游览攻略",
+        "fields": [
+          "custom:热门推荐",
+          "custom:小贴士",
+          "custom:交通指南",
+          "custom:内部交通",
+          "custom:游览时长",
+          "custom:最佳游览",
+          "custom:周边推荐",
+          "custom:适合人群",
+          "custom:景区类型"
+        ],
+        "rule": "参考杭州样式填写分条攻略、游览时长、最佳时段/季节、周边及适合人群。票价、交通班次、禁入规定和距离需核实，停车场不冒充热门景点。AI根据已证实特色形成的游览建议明确写建议，并在来源标题标注AI建议；不冒充官方规定。"
+      },
+      {
+        "name": "简介与等级",
+        "fields": [
+          "custom:基本简介",
+          "scenicLevel"
+        ],
+        "rule": "按同名景区城市、地址匹配公开资料；等级仅明确A等级，不能套用杭州样例事实。"
+      },
+      {
+        "name": "热门指数",
+        "fields": [
+          "custom:热门指数"
+        ],
+        "rule": "只有明确口径和来源才填；评分不能冒充客流或热门指数。"
+      }
+    ],
+    "completionRule": "所有映射缺项均应检查或检索，无法核实仍留空并报告字段与原因；不以0、无或通用文案填满未知值。MCP记录与回填，联网研究由连接的AI客户端执行。"
+  },
+  "fieldRules": [
+    {
+      "field": "custom:成人票",
+      "column": 21,
+      "instruction": "仅填当前适用季节的基本门票价格数字，如45、22.5；季节、证件、套餐说明写费用明细。",
+      "valueType": "number",
+      "format": "ticketPrice"
+    },
+    {
+      "field": "custom:学生票",
+      "column": 22,
+      "instruction": "仅填当前适用季节的基本门票价格数字，如45、22.5；季节、证件、套餐说明写费用明细。",
+      "valueType": "number",
+      "format": "ticketPrice"
+    },
+    {
+      "field": "custom:儿童票",
+      "column": 23,
+      "instruction": "填价格或价格 (简短年龄/身高条件)，如0 (1.2米以下)、65 (60岁以上)；季节、证件、其他票种说明写费用明细。",
+      "valueType": "text",
+      "format": "ticketPrice"
+    },
+    {
+      "field": "custom:老人票",
+      "column": 24,
+      "instruction": "填价格或价格 (简短年龄/身高条件)，如0 (1.2米以下)、65 (60岁以上)；季节、证件、其他票种说明写费用明细。",
+      "valueType": "text",
+      "format": "ticketPrice"
+    }
+  ]
+}

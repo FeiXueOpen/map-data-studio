@@ -1,0 +1,112 @@
+name: 编译并发布桌面客户端
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 版本标签，必须与项目版本一致，例如 v0.1.0
+        required: true
+        default: v0.1.0
+permissions:
+  contents: write
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Windows x64
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+            executable: src-tauri/target/debug/map-data-studio.exe
+          - label: Mac Apple Silicon
+            runner: macos-15
+            target: aarch64-apple-darwin
+            bundles: dmg
+            executable: src-tauri/target/debug/map-data-studio
+          - label: Mac Intel
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            bundles: dmg
+            executable: src-tauri/target/debug/map-data-studio
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.target }}
+      - run: npm ci
+      - name: 校验版本与发布资源
+        run: node scripts/check-release.mjs
+      - name: 检查 Windows 安装脚本
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'scripts/install/install.ps1'), [ref]$null, [ref]$errors) | Out-Null
+          if ($errors.Count) { throw ($errors | Out-String) }
+          & ./scripts/install/install.ps1 -Client doubao -Version $env:RELEASE_TAG -DryRun
+      - name: 准备前端与内置运行时
+        run: npm run build && npm run prepare:image-runtime
+      - name: 构建原生 MCP 测试程序
+        run: cargo build --manifest-path src-tauri/Cargo.toml
+      - name: 回归测试
+        run: npm test
+        env:
+          MAP_DATA_TEST_EXECUTABLE: ${{ matrix.executable }}
+      - name: 原生单元测试
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+      - name: 构建安装包并上传草稿 Release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: Map Data Studio ${{ env.RELEASE_TAG }}
+          releaseBody: 三个平台构建完成后自动发布。请阅读仓库中文 README 安装与连接 MCP。
+          releaseDraft: true
+          prerelease: false
+          args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: 生成无需管理员的安装压缩包与校验文件
+        run: node scripts/package-release.mjs ${{ matrix.target }}
+      - name: 上传便携安装资源
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$RELEASE_TAG" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: 打包技能和公开接入文件
+        run: |
+          mkdir release-assets
+          cd automation
+          zip -r ../release-assets/map-data-studio-skill.zip map-data-studio
+          cd ..
+          cp scripts/install/install.sh scripts/install/install.ps1 automation/mcp-manifest.json release-assets/
+      - name: 正式发布全部平台资源
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$RELEASE_TAG" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest --notes-file docs/release-notes.md
