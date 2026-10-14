@@ -31,7 +31,7 @@ Windows 运行安装程序；Mac 打开 DMG，将应用拖到 Applications。ZIP
 
 可以向能够联网、执行本机命令及操作桌面的 AI 发送：
 
-> 请帮我安装 GitHub 上 FeiXueOpen/map-data-studio。先读取 README 和 automation/mcp-manifest.json，识别我的系统和 CPU，下载对应最新 Release 并校验 SHA256，配置到我当前使用的豆包客户端，安装中文 Skill。保留其他 MCP 配置，完成后调用 get_status 验证。需要我填写高德密钥或确认系统权限时提示我。不能用CLI测试成功代替豆包会话的MCP调用。
+> 请帮我安装 GitHub 上 FeiXueOpen/map-data-studio。先读取 README 和 automation/mcp-manifest.json，识别我的系统和 CPU，下载对应最新 Release 并校验 SHA256，配置到我当前使用的AI客户端，安装中文 Skill。保留其他 MCP 配置，完成后调用 get_status 验证。需要我填写高德密钥或确认系统权限时提示我。不能用CLI测试成功代替豆包会话的MCP调用。
 
 仅能聊天、不能访问本机的 AI 无法安装本机应用。豆包未核实到公开自动注册接口：具备界面操作能力的 AI 可继续新建连接器；只运行脚本会生成配置和技能文件，**不等于豆包已注册、已连接**。首次密钥和系统启动确认仍需用户配合；v0.1.2起软件自动开启AI控制。
 
