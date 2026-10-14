@@ -7,7 +7,7 @@ description: 操作本机 Map Data Studio 地图数据工作台，查询高德 P
 
 操作已打开的 Map Data Studio 工作台。「设置 → AI 控制 / MCP」提供连接配置和内置程序路径，软件启动后自动开启 AI 控制，无需用户手动开启。请求失败时，不要擅自修改高德密钥或编造数据。
 
-用户要求在豆包安装/配置本工具时，先读取 [豆包专用安装与验收](references/doubao-install.md)。验证MCP时必须在AI客户端真实会话调用工具；CLI成功只证明本地服务可用，不能报告为MCP注入成功。
+用户要求为豆包、Codex、Claude 或其他 AI 客户端安装/配置本工具时，先读取 [AI 客户端安装与验收](references/client-install.md)；豆包再读取其中链接的专用流程。验证 MCP 时必须在 AI 客户端真实会话调用工具；CLI 成功只证明本地服务可用，不能报告为 MCP 注入成功。
 
 优先使用已连接的 MCP 工具。未连接 MCP 时，如果 AI 客户端能执行本机命令，可使用设置中提供的内置程序，无需安装 Node.js 或 Python：
 

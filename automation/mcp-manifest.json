@@ -19,16 +19,19 @@
   "agentInstallInstructions": [
     "读取README，确认本机操作系统及CPU架构，下载同架构Release安装资源和SHA256，不下载源码让普通用户编译。",
     "使用安装脚本的client选项安装，并生成相应MCP配置和技能；保留其他服务器配置，不覆盖同名既有配置。",
-    "Codex和Claude Desktop支持配置文件接入；豆包连接器通过可用的客户端界面添加，不猜测或修改未公开的内部数据库。",
-    "首次用户配置自己的高德Web服务Key、Web JS Key和securityJsCode，；软件启动后自动开启AI控制。系统首次启动确认由用户完成。",
+    "Codex通过config.toml与Codex技能目录安装；Claude Desktop优先使用同平台MCPB扩展，不支持时合并配置文件。",
+    "首次用户配置自己的高德 Web 服务 Key、Web JS Key 和 securityJsCode；软件启动后自动开启 AI 控制。系统首次启动确认由用户完成。",
     "优先stdio，命令是安装后的原生程序，参数--mcp-stdio；无需安装Node或Python。HTTP使用设置里的实际URL与Authorization，不把控制令牌发给远程服务器或提交到仓库。",
     "重载AI客户端或在当前会话启用连接器，调用get_status验证成功，再按SKILL.md查询和导出。不能在仅下载文件或生成配置后宣称MCP已连接。",
-    "豆包使用专用安装入口，读取生成的doubao-install-plan.json，界面确认操作清单与开关，并在新会话真实通过MCP调用get_status。CLI成功不能冒充MCP验证通过；当前会话没有工具则如实报告注入未完成。"
+    "豆包使用专用安装入口，读取doubao-install-plan.json；优先使用当前对话的技能安装和连接器管理能力注册并绑定当前会话，只在不可用时使用GUI兜底。CLI成功不能冒充MCP验证通过。"
   ],
   "doubaoInstallers": {
     "macos": "scripts/install/install-doubao.sh",
     "windows": "scripts/install/install-doubao.ps1"
   },
+  "clientInstallPlan": "安装后生成于文档目录 Map Data Studio/Resources/ai-install-plan.json",
+  "claudeDesktopExtensions": "每个平台Release附带map-data-studio-<version>-<platform>-<arch>.mcpb",
   "autoStartControl": true,
+  "clientGuide": "automation/map-data-studio/references/client-install.md",
   "doubaoGuide": "automation/map-data-studio/references/doubao-install.md"
 }

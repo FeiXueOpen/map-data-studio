@@ -1,7 +1,8 @@
-import {mkdir,cp,readFile,writeFile,access} from 'node:fs/promises'
+import {mkdir,cp,readFile,writeFile,access,chmod} from 'node:fs/promises'
 import {resolve,join} from 'node:path'
 import {execFileSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
+import {createMcpbManifest} from './mcpb-manifest.mjs'
 const target=process.argv[2];if(!['x86_64-pc-windows-msvc','aarch64-apple-darwin','x86_64-apple-darwin'].includes(target))throw new Error('未知发布目标')
 const version=JSON.parse(await readFile('package.json')).version
 const platform=target.includes('windows')?'windows':'macos',arch=target.startsWith('aarch64')?'arm64':'x64'
@@ -19,3 +20,17 @@ if(platform==='macos'){
  execFileSync('powershell',['-NoProfile','-Command',`Compress-Archive -LiteralPath ${quote(stage)} -DestinationPath ${quote(output)} -Force`],{stdio:'inherit'})
 }
 const sha=createHash('sha256').update(await readFile(output)).digest('hex');await writeFile(output+'.sha256',`${sha}  ${name}\n`);console.log('安装资源及SHA256已生成：'+name)
+
+const mcpbStage=resolve(`.cache/mcpb-${platform}-${arch}`),mcpbServer=join(mcpbStage,'server')
+await mkdir(mcpbServer,{recursive:true})
+const mcpbExecutable=platform==='windows'?'map-data-studio.exe':'map-data-studio'
+await cp(platform==='windows'?join(release,'map-data-studio.exe'):join(release,'map-data-studio'),join(mcpbServer,mcpbExecutable))
+if(platform==='macos')await chmod(join(mcpbServer,mcpbExecutable),0o755)
+await writeFile(join(mcpbStage,'manifest.json'),JSON.stringify(createMcpbManifest({version,platform,arch}),null,2)+'\n')
+const mcpbName=`map-data-studio-${version}-${platform}-${arch}.mcpb`,mcpbOutput=join(directory,mcpbName)
+if(platform==='macos')execFileSync('zip',['-r','-X',mcpbOutput,'.'],{cwd:mcpbStage,stdio:'inherit'})
+else{
+ const quote=s=>`'${s.replaceAll("'","''")}'`
+ execFileSync('powershell',['-NoProfile','-Command',`Compress-Archive -Path ${quote(join(mcpbStage,'*'))} -DestinationPath ${quote(mcpbOutput)} -Force`],{stdio:'inherit'})
+}
+console.log('Claude Desktop MCPB已生成：'+mcpbName)
