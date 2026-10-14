@@ -18,12 +18,12 @@
   "requiresSystemNodeOrPython": false,
   "agentInstallInstructions": [
     "读取README，确认本机操作系统及CPU架构，下载同架构Release安装资源和SHA256，不下载源码让普通用户编译。",
-    "使用安装脚本的client选项安装，并生成相应MCP配置和技能；保留其他服务器配置，不覆盖同名既有配置。",
+    "使用安装脚本的client选项安装，并生成相应MCP配置和技能；先备份再更新旧的同名map-data-studio配置，保留其他服务器与客户端设置。",
     "Codex通过config.toml与Codex技能目录安装；Claude Desktop优先使用同平台MCPB扩展，不支持时合并配置文件。",
     "首次用户配置自己的高德 Web 服务 Key、Web JS Key 和 securityJsCode；软件启动后自动开启 AI 控制。系统首次启动确认由用户完成。",
     "优先stdio，命令是安装后的原生程序，参数--mcp-stdio；无需安装Node或Python。HTTP使用设置里的实际URL与Authorization，不把控制令牌发给远程服务器或提交到仓库。",
-    "重载AI客户端或在当前会话启用连接器，调用get_status验证成功，再按SKILL.md查询和导出。不能在仅下载文件或生成配置后宣称MCP已连接。",
-    "豆包使用专用安装入口，读取doubao-install-plan.json；优先使用当前对话的技能安装和连接器管理能力注册并绑定当前会话，只在不可用时使用GUI兜底。CLI成功不能冒充MCP验证通过。"
+    "重载AI客户端或在当前会话启用连接器，仅通过真实MCP调用get_status，再按SKILL.md查询和导出。不能用下载完成、配置文件、CLI或模拟协议宣称会话已连接。",
+    "豆包使用专用安装入口并读取doubao-install-plan.json；优先使用当前对话的技能安装和连接器管理能力。支持STDIO时使用connector字段，只支持HTTP时从本机connectionFile读取当前endpoint和token，URL不用Markdown格式且不泄露token。仅在会话能力不可用时使用公开GUI。"
   ],
   "doubaoInstallers": {
     "macos": "scripts/install/install-doubao.sh",

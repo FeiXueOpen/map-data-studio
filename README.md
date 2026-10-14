@@ -31,7 +31,7 @@ Windows 运行安装程序；Mac 打开 DMG，将应用拖到 Applications。ZIP
 
 可以向能够联网、执行本机命令及操作桌面的 AI 发送：
 
-> 请帮我安装 GitHub 上 FeiXueOpen/map-data-studio。先读取 README、automation/mcp-manifest.json 和 Skill 的 client-install.md，识别我的系统、CPU 与当前 AI 客户端，下载对应最新 Release 并校验 SHA256。保留其他 MCP 与 Skill，按该客户端的官方方式安装中文 Skill 和 STDIO MCP。完成后在真实会话仅通过 map-data-studio MCP 调用 get_status 验证，不用 CLI 代替。
+> 请完整安装 GitHub 上的 FeiXueOpen/map-data-studio，不要只下载文件或只做 CLI 测试。先读取仓库 README、automation/mcp-manifest.json 和 automation/map-data-studio/references/client-install.md，识别操作系统、CPU 架构和当前 AI 客户端；下载匹配的最新 Release，校验 SHA256，并运行该客户端模式的安装脚本。启动桌面应用后，读取生成的 Map Data Studio/Resources/ai-install-plan.json，按当前客户端支持的方式安装中文 Skill、注册 MCP 并绑定会话。备份后可更新旧的同名 map-data-studio 配置，但必须保留其他 MCP、Skill 和客户端设置。最后在重载后的真实 AI 会话中仅通过 map-data-studio MCP 调用 get_status；不要用终端、CLI 或自行模拟协议代替。分别报告：①应用已安装并运行；②Skill 已被客户端加载；③连接器能看到工具清单；④真实会话 get_status 的返回。任一步失败都说明具体停点，不要提前宣布成功。只有系统首次打开确认和高德密钥需要我处理时再提示我。
 
 仅能聊天、不能访问本机的 AI 无法安装本机应用。安装脚本会生成 `ai-install-plan.json`；当前 AI 客户端应继续完成自己的 Skill 安装、MCP 注册和会话绑定。只生成配置或通过 CLI 预检，不等于会话已可用。首次密钥和系统启动确认仍需用户配合；v0.1.2 起软件自动开启 AI 控制。
 
@@ -43,7 +43,7 @@ Mac：
 curl -fL https://raw.githubusercontent.com/FeiXueOpen/map-data-studio/main/scripts/install/install.sh -o /tmp/map-data-install.sh
 bash /tmp/map-data-install.sh --client doubao
 # 也支持 --client codex / claude / none
-# --version v0.1.3；--dry-run 查看计划；--no-open 不启动应用
+# --version v0.1.4；--dry-run 查看计划；--no-open 不启动应用
 ```
 
 Windows PowerShell：
@@ -51,7 +51,7 @@ Windows PowerShell：
 ```powershell
 Invoke-WebRequest 'https://raw.githubusercontent.com/FeiXueOpen/map-data-studio/main/scripts/install/install.ps1' -OutFile "$env:TEMP\map-data-install.ps1"
 & "$env:TEMP\map-data-install.ps1" -Client doubao
-# 也支持 -Client codex / claude / none；-Version v0.1.3；-DryRun；-NoOpen
+# 也支持 -Client codex / claude / none；-Version v0.1.4；-DryRun；-NoOpen
 ```
 
 PowerShell 若受组织执行策略限制，按组织规则处理，不必修改机器级安全策略。
@@ -93,7 +93,7 @@ HTTP 端口和令牌重新开启后会变化，需要更新 HTTP 连接器。客
 
 ### 豆包专用安装口令
 
-> 请在当前豆包对话中安装 GitHub 上 FeiXueOpen/map-data-studio。读取 README、mcp-manifest.json 和 doubao-install.md，下载匹配的最新 Release 并校验 SHA256。运行豆包专用安装脚本后读取 doubao-install-plan.json。优先使用你在当前对话中的技能安装能力安装其中的本地 Skill，并绑定当前对话；再使用你的连接器管理能力按 connector.command 和独立 args 注册 STDIO MCP。仅当会话内安装/注册能力不可用时才操作豆包 GUI。最后在真实会话仅通过该 MCP 调用 get_status，不用 CLI 代替，并分开报告应用、Skill、连接器工具和会话调用结果。
+> 请在当前豆包对话中完整安装 GitHub 上的 FeiXueOpen/map-data-studio。先读取 README、automation/mcp-manifest.json 和 automation/map-data-studio/references/doubao-install.md，识别系统与 CPU，下载匹配的最新 Release 并校验 SHA256，运行豆包专用安装脚本。启动应用后读取 doubao-install-plan.json：先用当前对话的技能安装能力加载其中的本地 Skill 并绑定当前对话；再注册同名连接器。豆包支持 STDIO 时严格使用 connector.command 和每个独立 args；只提供 HTTP 时，从计划指定的本机 connectionFile 读取当前 endpoint 和 token，URL 只填纯文本地址，Authorization 填 Bearer、一个空格和 token，不要在回复中显示 token。备份后更新旧的同名连接器，保留其他连接器。会话内能力不可用时才操作公开管理界面，不修改豆包私有数据库。最后仅通过真实 MCP 调用 get_status，不用 CLI 代替，并分别报告应用、Skill、工具清单和会话调用四层结果；失败时说明具体停点。
 
 Mac专用入口：下载查看 `scripts/install/install-doubao.sh` 后运行 `bash install-doubao.sh`。Windows专用入口为 `scripts/install/install-doubao.ps1`。支持版本指定、dry-run和不启动应用选项，详见脚本参数。
 
@@ -121,7 +121,7 @@ Mac 程序为 `Map Data Studio.app/Contents/MacOS/map-data-studio`；Windows 为
 
 Codex 安装口令：
 
-> 请安装 GitHub 上 FeiXueOpen/map-data-studio，运行安装脚本的 codex 模式。保留现有 config.toml 和其他 MCP，确认 Skill 已安装到 Codex 技能目录，执行 codex mcp list，然后重载会话仅通过 map-data-studio MCP 调用 get_status 验收。
+> 请完整安装 GitHub 上的 FeiXueOpen/map-data-studio。识别系统与 CPU，下载并校验最新 Release，运行安装脚本的 codex 模式并启动应用。备份 config.toml；更新旧的同名 map-data-studio 项，但保留其他 MCP 和 Codex 设置。确认 Skill 已安装到 CODEX_HOME/skills/map-data-studio，执行 codex mcp list 检查注册，然后重载或新建 Codex 会话。最终必须在该会话中仅通过 map-data-studio MCP 调用 get_status，不用 CLI 代替，并分别报告应用、Skill、工具清单和会话调用结果。
 
 ### Claude Desktop / 其他客户端
 
@@ -142,7 +142,7 @@ Windows JSON 路径的反斜杠需转义，建议直接复制软件提供的配�
 
 Claude 安装口令：
 
-> 请安装 GitHub 上 FeiXueOpen/map-data-studio。安装对应系统的桌面应用后，优先安装同平台和架构的 .mcpb 本地扩展；如当前 Claude Desktop 不支持，运行安装脚本的 claude 模式并保留其他 MCP。在 Customize > Skills 导入 map-data-studio-skill.zip，重启后仅通过 MCP 调用 get_status 验收。
+> 请完整安装 GitHub 上的 FeiXueOpen/map-data-studio。识别系统与 CPU，下载、校验并启动对应桌面应用；再安装 Release 中同平台、同架构的 map-data-studio .mcpb。本机 Claude Desktop 不支持 MCPB 时，运行安装脚本的 claude 模式，备份并只更新同名 map-data-studio 配置，保留其他 MCP。在 Customize > Skills 导入并启用 map-data-studio-skill.zip，重启 Claude Desktop，在 Connectors 确认工具清单。最终仅通过真实 MCP 调用 get_status，不用 CLI 代替，并分别报告应用、Skill、工具清单和会话调用结果。
 
 Claude Desktop 官方建议本机 MCP 使用桌面扩展，自定义 Skill 以 ZIP 导入：[Local MCP servers](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop) · [Use skills in Claude](https://support.claude.com/en/articles/12512180-use-skills-in-claude)
 
