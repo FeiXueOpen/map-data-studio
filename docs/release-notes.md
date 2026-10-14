@@ -8,4 +8,4 @@
 
 主要能力：POI 分页、详情与子点、AOI 和手动范围兜底、原始字段保留、AI 逐列规则补全、标准/模板 Excel、导出高德图片及明确请求时联网补图。成人/学生票为数值，儿童/老人可带简短条件，未知事实留空，附来源与规则审计。
 
-优化多 AI 客户端安装口令和升级流程：备份后自动更新旧的同名 `map-data-studio` 配置，同时保留其他 MCP 与客户端设置；豆包会根据客户端能力选择 STDIO 或本机 HTTP，避免把 Markdown URL、过期端口或令牌填入连接器。安装结果按应用、Skill、工具清单和真实会话调用四层验收，CLI 成功不视为会话 MCP 成功。
+新增 CLI + Skill 默认接入：支持 `describe`、`doctor`、`status`、`call` 和 `skill install`，无需系统 Node.js/Python；大参数可通过 `--args-file` 或 `--stdin` 传递。MCP 保留为客户端支持时的增强通道。安装结果分别报告应用、Skill、CLI和可选 MCP，CLI 成功不冒充 MCP 注入成功。

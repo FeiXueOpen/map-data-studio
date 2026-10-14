@@ -5,9 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 版本标签，必须与项目版本一致，例如 v0.1.4
+        description: 版本标签，必须与项目版本一致，例如 v0.1.5
         required: true
-        default: v0.1.4
+        default: v0.1.5
 permissions:
   contents: write
 concurrency:

@@ -26,5 +26,12 @@ test('豆包生成接入文件而不虚构注册；dry-run不写入配置',()=>f
  const output=setup(root,'doubao');assert.ok(output.includes('当前对话安装指令'));assert.ok(!(await readdir(root)).includes('.codex'))
  const recipe=JSON.parse(await readFile(join(root,'Documents/Map Data Studio/Resources/map-data-studio-mcp.json'),'utf8'));const entry=recipe.mcpServers['map-data-studio'];assert.equal(entry.command,process.platform==='darwin'?'/usr/bin/env':process.execPath)
  assert.ok(entry.args.includes('--connection-file'));assert.ok(entry.args.includes('--mcp-stdio'))
- const plan=JSON.parse(await readFile(join(root,'Documents/Map Data Studio/Resources/doubao-install-plan.json'),'utf8'));assert.deepEqual(plan.connector.args,entry.args);assert.equal(plan.autoStartControl,true);assert.ok(plan.verification.some(v=>v.includes('不使用CLI')));assert.match(plan.conversationInstallPrompt,/绑定当前对话/);assert.match(plan.conversationInstallPrompt,/只支持HTTP/);assert.match(plan.registrationPriority[0],/当前豆包对话/);assert.equal(plan.httpFallback.source,plan.connectionFile)
+ const plan=JSON.parse(await readFile(join(root,'Documents/Map Data Studio/Resources/doubao-install-plan.json'),'utf8'));assert.deepEqual(plan.connector.args,entry.args);assert.equal(plan.autoStartControl,true);assert.equal(plan.defaultControl,'cli');assert.ok(plan.verification.some(v=>v.includes('doctor --json')));assert.match(plan.conversationInstallPrompt,/绑定当前对话/);assert.match(plan.conversationInstallPrompt,/默认通过/);assert.match(plan.registrationPriority[0],/CLI/);assert.equal(plan.httpFallback.source,plan.connectionFile)
+}))
+test('自动模式安装通用Skill并把CLI设为默认通道',()=>fixture(async root=>{
+ await mkdir(join(root,'.codex'))
+ const output=setup(root,'auto');assert.match(output,/默认使用内置CLI/)
+ assert.ok((await readFile(join(root,'.agents/skills/map-data-studio/SKILL.md'),'utf8')).includes('Map Data Studio'))
+ assert.ok((await readFile(join(root,'.codex/skills/map-data-studio/SKILL.md'),'utf8')).includes('Map Data Studio'))
+ const plan=JSON.parse(await readFile(join(root,'Documents/Map Data Studio/Resources/auto-install-plan.json'),'utf8'));assert.equal(plan.defaultControl,'cli');assert.deepEqual(plan.cli.args.status,['status','--json']);assert.equal(plan.cli.argumentInput.file,'--args-file');assert.equal(plan.cli.argumentInput.maxBytes,16*1024*1024);assert.equal(plan.skill.codexDirectory,join(root,'.codex/skills/map-data-studio'))
 }))

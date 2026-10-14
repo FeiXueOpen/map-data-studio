@@ -1,5 +1,5 @@
 // Uses the runtime shipped inside the app; no system Node.js/Python dependency.
-import {access,cp,mkdir,readFile,writeFile} from 'node:fs/promises'
+import {access,cp,mkdir,readFile,rename,rm,writeFile} from 'node:fs/promises'
 import {homedir} from 'node:os'
 import {dirname,join,resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -9,11 +9,11 @@ for(let i=2;i<process.argv.length;i++){
   const key=process.argv[i]
   if(key==='--dry-run')options.dryRun=true
   else if(['--client','--command','--config-root'].includes(key)&&process.argv[i+1])options[key.slice(2)]=process.argv[++i]
-  else throw new Error('参数：--client codex|claude|doubao|none --command 桌面程序绝对路径 [--dry-run]')
+  else throw new Error('参数：--client auto|codex|claude|doubao|none --command 桌面程序绝对路径 [--dry-run]')
 }
 
-const client=options.client||'none'
-if(!['codex','claude','doubao','none'].includes(client)||!options.command)throw new Error('需要有效的客户端和--command')
+const client=options.client||'auto'
+if(!['auto','codex','claude','doubao','none'].includes(client)||!options.command)throw new Error('需要有效的客户端和--command')
 const command=resolve(options.command)
 await access(command)
 
@@ -24,6 +24,8 @@ const resources=join(userHome,'Documents','Map Data Studio','Resources')
 const sharedSkill=join(userHome,'.agents','skills','map-data-studio')
 const codexRoot=options['config-root']?join(userHome,'.codex'):process.env.CODEX_HOME||join(userHome,'.codex')
 const codexSkill=join(codexRoot,'skills','map-data-studio')
+const claudeSkillRoot=join(userHome,'.claude')
+const claudeSkill=join(claudeSkillRoot,'skills','map-data-studio')
 const claudeRoot=options['config-root']?join(userHome,'Claude'):process.platform==='win32'?join(process.env.APPDATA||join(userHome,'AppData','Roaming'),'Claude'):join(userHome,'Library','Application Support','Claude')
 const connectionFile=process.platform==='win32'
   ? join(options['config-root']?join(userHome,'AppData','Roaming'):process.env.APPDATA||join(userHome,'AppData','Roaming'),'com.mapdatastudio.desktop','automation-connection.json')
@@ -37,18 +39,21 @@ const skillZip='https://github.com/FeiXueOpen/map-data-studio/releases/latest/do
 const verification={
   common:[
     '打开Map Data Studio，等待本地服务自动就绪',
-    '确认客户端已加载map-data-studio工具与Skill',
-    '在真实AI会话中仅通过MCP调用get_status，不使用CLI代替',
-    '分别报告应用安装、Skill加载、MCP工具清单和真实会话调用；任一步失败都说明具体停点',
+    '先通过内置CLI执行doctor --json和status --json，确认通用控制通道可用',
+    '确认客户端已加载map-data-studio Skill；客户端支持MCP时再注册并验证工具',
+    '分别报告应用、Skill、CLI和可选MCP结果；任一步失败都说明具体停点',
   ],
   codex:['执行codex mcp list检查注册','重新加载Codex会话后调用get_status'],
   claude:['重启Claude Desktop，在Connectors中确认工具','在Customize > Skills导入并启用Skill ZIP，再调用get_status'],
   doubao:['优先让当前豆包对话使用自身的技能安装和连接器管理能力完成注册','安装后绑定当前对话；仅在会话内注册能力不可用时使用GUI兜底'],
 }
 
-const plan={client,application:command,connector:{name:'map-data-studio',transport:'STDIO',...entry},connectionFile,autoStartControl:true,sameNamePolicy:'备份后更新旧的map-data-studio配置，保留所有其他MCP和Skill',skill:{sourceDirectory:sourceSkill,sharedDirectory:sharedSkill,zip:skillZip},verification:[...verification.common,...(verification[client]||[])]}
+async function exists(path){try{await access(path);return true}catch{return false}}
+const codexDetected=await exists(codexRoot),claudeDetected=await exists(claudeSkillRoot)
+const plan={client,application:command,defaultControl:'cli',cli:{command,args:{status:['status','--json'],describe:['describe','--json'],doctor:['doctor','--json'],installSkill:['skill','install','--client',client==='none'?'auto':client,'--json']},argumentInput:{inline:'--args',file:'--args-file',stdin:'--stdin',maxBytes:16*1024*1024}},connector:{name:'map-data-studio',transport:'STDIO',...entry},connectionFile,autoStartControl:true,sameNamePolicy:'备份后更新旧的map-data-studio配置，保留所有其他MCP和Skill',skill:{sourceDirectory:sourceSkill,sharedDirectory:sharedSkill,zip:skillZip},verification:[...verification.common,...(verification[client]||[])]}
+if(client==='codex'||client==='auto'&&codexDetected)plan.skill.codexDirectory=codexSkill
+if(client==='claude'||client==='auto'&&claudeDetected)plan.skill.claudeDirectory=claudeSkill
 if(client==='codex'){
-  plan.skill.codexDirectory=codexSkill
   plan.clientCompletionPrompt='确认config.toml中的同名旧路径已更新，执行codex mcp list，重载或新建Codex会话，再仅通过map-data-studio MCP调用get_status。'
 }
 if(client==='claude'){
@@ -56,9 +61,9 @@ if(client==='claude'){
   plan.clientCompletionPrompt='优先安装匹配平台和架构的MCPB，在Customize > Skills导入Skill ZIP，重启Claude Desktop后仅通过map-data-studio MCP调用get_status。'
 }
 if(client==='doubao'){
-  plan.registrationPriority=['当前豆包对话的技能安装与连接器管理能力','客户端支持时使用STDIO','只提供HTTP时读取本机连接文件配置自定义连接器','豆包公开管理界面兜底']
+  plan.registrationPriority=['使用内置CLI作为默认控制通道','当前豆包对话可稳定注册连接器时增加STDIO MCP','只提供HTTP时读取本机连接文件配置自定义连接器','豆包公开管理界面兜底']
   plan.httpFallback={source:connectionFile,instruction:'读取其中当前endpoint和token，URL只填纯文本地址，Authorization填Bearer加空格和token；不要输出或上传token'}
-  plan.conversationInstallPrompt=`请在当前豆包对话中安装 ${sharedSkill} 这个本地Skill并绑定当前对话。再使用豆包自身的连接器管理能力注册 map-data-studio：支持STDIO时严格使用本计划connector.command和独立args；只支持HTTP时从 ${connectionFile} 读取当前endpoint和token，URL不要使用Markdown格式，Authorization填写Bearer加空格和token且不要在回复中泄露。备份后更新同名旧连接器，保留其他连接器。最后在真实对话中仅通过MCP调用get_status，不用CLI代替，并分别报告四层结果。`
+  plan.conversationInstallPrompt=`请在当前豆包对话中加载 ${sharedSkill} 并绑定当前对话。默认通过本计划cli.command执行 doctor --json 和 status --json；这已构成可用的AI控制通道。当前豆包版本能稳定注册MCP时，再按connector添加STDIO连接器；只支持HTTP时从 ${connectionFile} 读取当前endpoint和token，且不要显示token。分别报告应用、Skill、CLI和可选MCP结果。`
 }
 
 if(options.dryRun){
@@ -68,9 +73,11 @@ if(options.dryRun){
 
 async function backup(file){try{await cp(file,file+'.backup-'+Date.now(),{recursive:true})}catch(e){if(e.code!=='ENOENT')throw e}}
 async function installSkill(target,backupRoot){
-  try{await access(target);const saved=join(backupRoot,String(Date.now()));await mkdir(dirname(saved),{recursive:true});await cp(target,saved,{recursive:true})}catch(e){if(e.code!=='ENOENT')throw e}
-  await mkdir(dirname(target),{recursive:true})
-  await cp(sourceSkill,target,{recursive:true})
+  const stamp=String(Date.now()),stage=target+'.installing-'+stamp
+  let saved
+  try{await access(target);saved=join(backupRoot,stamp);await mkdir(dirname(saved),{recursive:true});await cp(target,saved,{recursive:true})}catch(e){if(e.code!=='ENOENT')throw e}
+  await rm(stage,{recursive:true,force:true});await cp(sourceSkill,stage,{recursive:true})
+  try{await rm(target,{recursive:true,force:true});await mkdir(dirname(target),{recursive:true});await rename(stage,target)}catch(error){await rm(stage,{recursive:true,force:true});if(saved){await cp(saved,target,{recursive:true})}throw error}
 }
 function codexConfig(old){
   const target=/^mcp_servers\.(?:map-data-studio|"map-data-studio"|'map-data-studio')(?:\.|$)/
@@ -106,7 +113,8 @@ if(client==='codex'){
 
 if(client!=='none'){
   await installSkill(sharedSkill,join(userHome,'.agents','map-data-studio-backups'))
-  if(client==='codex'&&codexSkill!==sharedSkill)await installSkill(codexSkill,join(codexRoot,'skill-backups','map-data-studio'))
+  if((client==='codex'||client==='auto'&&codexDetected)&&codexSkill!==sharedSkill)await installSkill(codexSkill,join(codexRoot,'skill-backups','map-data-studio'))
+  if((client==='claude'||client==='auto'&&claudeDetected)&&claudeSkill!==sharedSkill)await installSkill(claudeSkill,join(claudeSkillRoot,'skill-backups','map-data-studio'))
 }
 
 console.log('MCP连接配置：'+join(resources,'map-data-studio-mcp.json'))
@@ -115,6 +123,7 @@ if(client==='doubao'){
   console.log('豆包当前对话安装指令：')
   console.log(plan.conversationInstallPrompt)
 }
+if(client==='auto')console.log('已安装通用Skill。默认使用内置CLI；当前AI客户端原生支持MCP时可按计划继续注册。')
 if(client==='claude')console.log('Claude Desktop可直接使用已写入的配置，也可安装Release中对应平台的.mcpb桌面扩展；Skill需在Customize > Skills中导入ZIP。')
 if(client==='codex')console.log('Codex MCP已写入config.toml，Skill已同时安装到Codex专用目录和共享目录。')
-console.log('软件打开后自动开启AI控制。安装完成后必须在对应AI客户端真实会话调用get_status；CLI成功不代表会话已加载MCP。')
+console.log('软件打开后自动开启AI控制。CLI + Skill是默认通用通道；如配置MCP，仍需在对应AI客户端真实会话调用get_status验证工具注入。')

@@ -1,9 +1,9 @@
-param([ValidateSet('codex','claude','doubao','none')][string]$Client='none',[string]$Version='', [switch]$NoOpen, [switch]$DryRun)
+param([ValidateSet('auto','codex','claude','doubao','none')][string]$Client='auto',[string]$Version='', [switch]$NoOpen, [switch]$DryRun)
 $ErrorActionPreference='Stop'
 if ([Environment]::Is64BitOperatingSystem -ne $true) { throw '仅支持Windows x64' }
 if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { throw '请使用x64设备，当前未发布Windows ARM64原生包' }
 if (!$Version) { $Version=(Invoke-RestMethod 'https://api.github.com/repos/FeiXueOpen/map-data-studio/releases/latest').tag_name }
-if ($Version -notmatch '^v\d+\.\d+\.\d+$') { throw '版本格式应为v0.1.4' }
+if ($Version -notmatch '^v\d+\.\d+\.\d+$') { throw '版本格式应为v0.1.5' }
 $name="map-data-studio-$($Version.Substring(1))-windows-x64.zip"
 $base="https://github.com/FeiXueOpen/map-data-studio/releases/download/$Version"
 $parent=Join-Path $env:LOCALAPPDATA 'Programs'

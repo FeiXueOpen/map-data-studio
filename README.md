@@ -1,6 +1,6 @@
 # Map Data Studio 地图数据工作台
 
-通过桌面界面或 AI 查询高德 POI、采集子点位、补全 Excel 数据和保存景区图片。内置原生 MCP/CLI 与图片浏览器，普通用户无需安装 Node.js、Python 或 Rust。
+通过桌面界面或 AI 查询高德 POI、采集子点位、补全 Excel 数据和保存景区图片。内置原生 CLI、MCP 与图片浏览器，普通用户无需安装 Node.js、Python 或 Rust。
 
 [下载安装包](https://github.com/FeiXueOpen/map-data-studio/releases/latest) · [详细 AI/MCP 操作指南](docs/AI使用指南.md) · [开发与自动发布](docs/发布与开发.md)
 
@@ -29,11 +29,11 @@ Windows 运行安装程序；Mac 打开 DMG，将应用拖到 Applications。ZIP
 
 ### 让 AI 帮忙安装
 
-可以向能够联网、执行本机命令及操作桌面的 AI 发送：
+向能够联网并执行本机命令的 AI 发送这一句话即可：
 
-> 请完整安装 GitHub 上的 FeiXueOpen/map-data-studio，不要只下载文件或只做 CLI 测试。先读取仓库 README、automation/mcp-manifest.json 和 automation/map-data-studio/references/client-install.md，识别操作系统、CPU 架构和当前 AI 客户端；下载匹配的最新 Release，校验 SHA256，并运行该客户端模式的安装脚本。启动桌面应用后，读取生成的 Map Data Studio/Resources/ai-install-plan.json，按当前客户端支持的方式安装中文 Skill、注册 MCP 并绑定会话。备份后可更新旧的同名 map-data-studio 配置，但必须保留其他 MCP、Skill 和客户端设置。最后在重载后的真实 AI 会话中仅通过 map-data-studio MCP 调用 get_status；不要用终端、CLI 或自行模拟协议代替。分别报告：①应用已安装并运行；②Skill 已被客户端加载；③连接器能看到工具清单；④真实会话 get_status 的返回。任一步失败都说明具体停点，不要提前宣布成功。只有系统首次打开确认和高德密钥需要我处理时再提示我。
+> 帮我安装 GitHub 上的 FeiXueOpen/map-data-studio。
 
-仅能聊天、不能访问本机的 AI 无法安装本机应用。安装脚本会生成 `ai-install-plan.json`；当前 AI 客户端应继续完成自己的 Skill 安装、MCP 注册和会话绑定。只生成配置或通过 CLI 预检，不等于会话已可用。首次密钥和系统启动确认仍需用户配合；v0.1.2 起软件自动开启 AI 控制。
+仓库提供机器可读清单、自动识别系统架构的脚本和随包中文 Skill。默认完成应用安装、Skill 安装、启动及 CLI 状态验证；当前 AI 客户端稳定支持 MCP 时再增加 MCP。仅能聊天、不能访问本机的 AI 无法安装本机应用。首次密钥和系统启动确认仍需用户配合；软件会自动开启 AI 控制。
 
 安装脚本自动识别架构、读取最新 Release、校验 SHA256，安装到当前用户目录。请先下载查看脚本再运行。重复安装保留应用备份，不删除用户数据；已有同名 MCP 配置不强制覆盖。
 
@@ -41,17 +41,17 @@ Mac：
 
 ```sh
 curl -fL https://raw.githubusercontent.com/FeiXueOpen/map-data-studio/main/scripts/install/install.sh -o /tmp/map-data-install.sh
-bash /tmp/map-data-install.sh --client doubao
-# 也支持 --client codex / claude / none
-# --version v0.1.4；--dry-run 查看计划；--no-open 不启动应用
+bash /tmp/map-data-install.sh
+# 自动模式默认安装 CLI + Skill；也支持 --client doubao / codex / claude / none
+# --version v0.1.5；--dry-run 查看计划；--no-open 不启动应用
 ```
 
 Windows PowerShell：
 
 ```powershell
 Invoke-WebRequest 'https://raw.githubusercontent.com/FeiXueOpen/map-data-studio/main/scripts/install/install.ps1' -OutFile "$env:TEMP\map-data-install.ps1"
-& "$env:TEMP\map-data-install.ps1" -Client doubao
-# 也支持 -Client codex / claude / none；-Version v0.1.4；-DryRun；-NoOpen
+& "$env:TEMP\map-data-install.ps1"
+# 自动模式默认安装 CLI + Skill；也支持 -Client doubao / codex / claude / none
 ```
 
 PowerShell 若受组织执行策略限制，按组织规则处理，不必修改机器级安全策略。
@@ -72,14 +72,22 @@ PowerShell 若受组织执行策略限制，按组织规则处理，不必修改
 
 设置中还可指定 Excel、图片和其他资源目录，默认系统文档目录 `Map Data Studio/Excel`、`Images`、`Resources`。图片以点位名称建文件夹。图片浏览器代理留空使用系统/环境代理，需要时填写本机实际代理地址。
 
-## MCP 与 Skill 接入
+## AI 接入：CLI + Skill 与可选 MCP
 
-MCP 提供控制接口；Skill 提供中文流程说明，指导 AI 分页、等待、查证、映射和导出，推荐同时安装。Skill 不等于连接器；MCP 不会自己联网搜索或自动给空闲 AI 发起新一轮对话。
+**CLI + Skill 是默认兼容方式。** CLI 提供结构化控制命令，Skill 指导 AI 分页、等待、查证、映射和导出；二者随应用发布，不需要系统 Node.js/Python。MCP 调用同一套工具，是支持客户端的可选增强。
 
-1. 打开 Map Data Studio。v0.1.2起工作台就绪后自动开启AI控制，设置页显示连接状态；无需人工开关。
-2. 在 AI 客户端添加连接器，优先 **stdio**。
-3. 安装 Release 的 `map-data-studio-skill.zip`，或使用仓库 `automation/map-data-studio` 技能目录。
-4. 读取生成的 `ai-install-plan.json`，重载或绑定 AI 会话，让 AI 仅通过 MCP 调用 `get_status` 验证。
+安装计划中的 `cli.command` 是当前电脑的程序绝对路径。AI 可执行：
+
+```sh
+"<程序>" skill install --client auto --json
+"<程序>" describe --json
+"<程序>" doctor --json
+"<程序>" status --json
+"<程序>" call list_cities --args '{"provinceId":3761}'
+"<程序>" call supplement_pois --args-file /绝对路径/request.json
+```
+
+`status/tools/call` 在连接文件尚不存在时会尝试启动桌面应用。小参数使用 `--args`；大量补全数据使用 `--args-file` 或 `--stdin`，单次上限 16 MiB，避免系统命令行长度和转义限制。Excel、图片只传文件路径。已有 Skill 会先备份。安装后需要让当前 AI 客户端重载 Skill；客户端支持 MCP 时，可继续按下面方式添加连接器。
 
 ### 豆包
 
@@ -91,9 +99,9 @@ MCP 提供控制接口；Skill 提供中文流程说明，指导 AI 分页、等
 
 HTTP 端口和令牌重新开启后会变化，需要更新 HTTP 连接器。客户端与软件应在同一电脑，不能把 127.0.0.1 当作云端服务地址。脚本生成的 stdio 配置在文档目录 `Map Data Studio/Resources/map-data-studio-mcp.json`；仅 HTTP 的版本仍以应用设置中的真实配置为准。不要把本机令牌提交到仓库或发送给远程服务。
 
-### 豆包专用安装口令
+### 豆包安装
 
-> 请在当前豆包对话中完整安装 GitHub 上的 FeiXueOpen/map-data-studio。先读取 README、automation/mcp-manifest.json 和 automation/map-data-studio/references/doubao-install.md，识别系统与 CPU，下载匹配的最新 Release 并校验 SHA256，运行豆包专用安装脚本。启动应用后读取 doubao-install-plan.json：先用当前对话的技能安装能力加载其中的本地 Skill 并绑定当前对话；再注册同名连接器。豆包支持 STDIO 时严格使用 connector.command 和每个独立 args；只提供 HTTP 时，从计划指定的本机 connectionFile 读取当前 endpoint 和 token，URL 只填纯文本地址，Authorization 填 Bearer、一个空格和 token，不要在回复中显示 token。备份后更新旧的同名连接器，保留其他连接器。会话内能力不可用时才操作公开管理界面，不修改豆包私有数据库。最后仅通过真实 MCP 调用 get_status，不用 CLI 代替，并分别报告应用、Skill、工具清单和会话调用四层结果；失败时说明具体停点。
+豆包同样只需发送：“帮我安装 GitHub 上的 FeiXueOpen/map-data-studio”。默认通过 CLI + Skill 使用，不再把连接器配置作为安装成功的前置条件。豆包当前版本能稳定加载 MCP 时，可再按 `doubao-install-plan.json` 增加连接器。
 
 Mac专用入口：下载查看 `scripts/install/install-doubao.sh` 后运行 `bash install-doubao.sh`。Windows专用入口为 `scripts/install/install-doubao.ps1`。支持版本指定、dry-run和不启动应用选项，详见脚本参数。
 
@@ -121,7 +129,7 @@ Mac 程序为 `Map Data Studio.app/Contents/MacOS/map-data-studio`；Windows 为
 
 Codex 安装口令：
 
-> 请完整安装 GitHub 上的 FeiXueOpen/map-data-studio。识别系统与 CPU，下载并校验最新 Release，运行安装脚本的 codex 模式并启动应用。备份 config.toml；更新旧的同名 map-data-studio 项，但保留其他 MCP 和 Codex 设置。确认 Skill 已安装到 CODEX_HOME/skills/map-data-studio，执行 codex mcp list 检查注册，然后重载或新建 Codex 会话。最终必须在该会话中仅通过 map-data-studio MCP 调用 get_status，不用 CLI 代替，并分别报告应用、Skill、工具清单和会话调用结果。
+> 帮我安装 GitHub 上的 FeiXueOpen/map-data-studio。默认完成 CLI + Skill 验证；如果当前 Codex 支持 MCP，再保留其他配置并增加 map-data-studio MCP。
 
 ### Claude Desktop / 其他客户端
 
@@ -142,7 +150,7 @@ Windows JSON 路径的反斜杠需转义，建议直接复制软件提供的配�
 
 Claude 安装口令：
 
-> 请完整安装 GitHub 上的 FeiXueOpen/map-data-studio。识别系统与 CPU，下载、校验并启动对应桌面应用；再安装 Release 中同平台、同架构的 map-data-studio .mcpb。本机 Claude Desktop 不支持 MCPB 时，运行安装脚本的 claude 模式，备份并只更新同名 map-data-studio 配置，保留其他 MCP。在 Customize > Skills 导入并启用 map-data-studio-skill.zip，重启 Claude Desktop，在 Connectors 确认工具清单。最终仅通过真实 MCP 调用 get_status，不用 CLI 代替，并分别报告应用、Skill、工具清单和会话调用结果。
+> 帮我安装 GitHub 上的 FeiXueOpen/map-data-studio。默认完成 CLI + Skill 验证；如果当前 Claude 支持本地 MCP，再安装匹配架构的 MCPB 并单独验证连接器。
 
 Claude Desktop 官方建议本机 MCP 使用桌面扩展，自定义 Skill 以 ZIP 导入：[Local MCP servers](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop) · [Use skills in Claude](https://support.claude.com/en/articles/12512180-use-skills-in-claude)
 
@@ -150,7 +158,7 @@ Claude Desktop 官方建议本机 MCP 使用桌面扩展，自定义 Skill 以 Z
 
 **查询、补全和默认导出：**
 
-> 用 Map Data Studio MCP 查询北京市景区，逐页加载可返回数据并采集详情。有依据地选 10 个独立景区，不包含停车场/门区，不冒充客流排名。按默认杭州 34 列格式研究全部缺项，优先官方资料，补全票价、费用、预约、时间与攻略。成人/学生票仅价格；儿童/老人可带简短年龄/身高条件，其他说明写费用明细。未知留空并列明，另存 Excel 到默认目录，不覆盖文件。测试只下载前 5 个景区高德图片，不联网补图。
+> 用 Map Data Studio 查询北京市景区，逐页加载可返回数据并采集详情。有依据地选 10 个独立景区，不包含停车场/门区，不冒充客流排名。按默认杭州 34 列格式研究全部缺项，优先官方资料，补全票价、费用、预约、时间与攻略。成人/学生票仅价格；儿童/老人可带简短年龄/身高条件，其他说明写费用明细。未知留空并列明，另存 Excel 到默认目录，不覆盖文件。测试只下载前 5 个景区高德图片，不联网补图。
 
 **发送空白模板、指定每列规则：**
 

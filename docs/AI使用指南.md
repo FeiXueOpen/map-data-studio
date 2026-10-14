@@ -2,15 +2,15 @@
 
 ## 1. 准备与安装
 
-先按根目录 README 安装对应系统 Release。打开应用设置，填写自己的高德 Web 服务 Key、JS Key、安全密钥，软件启动后会自动开启 AI 控制，无需人工开关。安装中文技能 ZIP，并在 AI 客户端添加 MCP 连接器。
+先按根目录 README 安装对应系统 Release。打开应用设置，填写自己的高德 Web 服务 Key、JS Key、安全密钥，软件启动后会自动开启 AI 控制，无需人工开关。安装中文 Skill 后即可通过内置 CLI 使用；AI 客户端原生支持 MCP 时可再添加连接器。
 
-推荐 stdio：原生桌面程序绝对路径 + `--mcp-stdio`。程序自动读取本机连接文件，无需系统 Node/Python。安装后读取 `Map Data Studio/Resources/ai-install-plan.json`。旧的同名配置应在备份后更新，其他 MCP 与设置保持不变。Codex 使用 `config.toml` 和 Codex 技能目录；Claude Desktop 优先安装同平台 `.mcpb` 并另行导入 Skill ZIP；豆包优先让当前对话使用自身技能安装和连接器管理能力，支持 STDIO 时使用计划参数，只提供 HTTP 时从本机连接文件读取当前地址和令牌，GUI 只是兜底。
+默认通道读取 `Map Data Studio/Resources/ai-install-plan.json` 中的 `cli.command`，执行 `doctor --json`、`status --json` 和 `call <工具> --args <JSON>`。无需系统 Node/Python。MCP 推荐 stdio：同一原生程序加 `--mcp-stdio`。旧的同名配置应在备份后更新，其他 MCP 与设置保持不变。Codex 可额外写入 `config.toml`；Claude Desktop 可安装同平台 `.mcpb`；豆包连接器作为可选增强。
 
-技能源码是 `automation/map-data-studio/SKILL.md`。安装脚本会备份并复制到共享 `~/.agents/skills/map-data-studio`；Codex 模式还会安装到其专用技能目录。豆包和 Claude 的会话级技能仍需通过客户端自身能力安装/导入并启用；复制文件不等于会话已加载。MCP 和技能都不需要用户提供 AI API Key。
+技能源码是 `automation/map-data-studio/SKILL.md`。安装脚本会备份并复制到共享 `~/.agents/skills/map-data-studio`；也可执行 `skill install --client auto --json` 更新。Codex、豆包和 Claude 的会话级技能仍需由客户端加载或启用；复制文件不等于会话已加载。CLI、MCP 和 Skill 都不需要用户提供 AI API Key。
 
 验证指令：
 
-> 请读取 map-data-studio 技能，调用 MCP get_status，告诉我目前城市、点位数量、是否忙碌。如果连接失败先排查，不要重新查询清空数据。
+> 请读取 map-data-studio 技能，通过当前可用的 MCP 或内置 CLI 读取状态，告诉我目前城市、点位数量、是否忙碌。如果连接失败先排查，不要重新查询清空数据。
 
 软件未打开、控制开关关闭、客户端未启用连接器时无法控制。多个 AI 可以注册同一个本机服务，但修改任务同时只执行一个；遇 busy 等待，不重复发起。
 

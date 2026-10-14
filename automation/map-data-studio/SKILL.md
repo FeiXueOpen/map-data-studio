@@ -5,19 +5,21 @@ description: 操作本机 Map Data Studio 地图数据工作台，查询高德 P
 
 # Map Data Studio 地图数据采集
 
-操作已打开的 Map Data Studio 工作台。「设置 → AI 控制 / MCP」提供连接配置和内置程序路径，软件启动后自动开启 AI 控制，无需用户手动开启。请求失败时，不要擅自修改高德密钥或编造数据。
+操作本机 Map Data Studio 工作台。软件启动后自动开启 AI 控制，无需用户手动开启。请求失败时，不要擅自修改高德密钥或编造数据。
 
-用户要求为豆包、Codex、Claude 或其他 AI 客户端安装/配置本工具时，先读取 [AI 客户端安装与验收](references/client-install.md)；豆包再读取其中链接的专用流程。验证 MCP 时必须在 AI 客户端真实会话调用工具；CLI 成功只证明本地服务可用，不能报告为 MCP 注入成功。
+用户要求安装或配置本工具时，读取 [AI 客户端安装与验收](references/client-install.md)。执行具体任务时优先使用已经可用的通道：有 MCP 工具就直接调用；否则使用内置 CLI。CLI + Skill 是默认跨客户端通道，MCP 是可选增强，两者调用同一套业务工具。
 
-优先使用已连接的 MCP 工具。未连接 MCP 时，如果 AI 客户端能执行本机命令，可使用设置中提供的内置程序，无需安装 Node.js 或 Python：
+使用 CLI 时读取 [内置 CLI 接入](references/cli.md)，从安装计划取得程序绝对路径，无需安装 Node.js 或 Python。常用命令：
 
 ```sh
-'/path/to/map-data-studio' --cli tools
-'/path/to/map-data-studio' --cli status
-'/path/to/map-data-studio' --cli call list_cities --args '{"provinceId":3761}'
+'/path/to/map-data-studio' doctor --json
+'/path/to/map-data-studio' status --json
+'/path/to/map-data-studio' call list_cities --args '{"provinceId":3761}'
 ```
 
-如果软件提供了不同的连接文件，可通过 `--connection-file /absolute/path/automation-connection.json` 指定。在 Windows PowerShell 中，带引号的程序路径前需要加 `&`。CLI 会读取独立的本地控制令牌，不要在任务输出中打印或复制凭据。`tools` 命令返回当前工具及其参数结构。
+如果软件提供了不同的连接文件，可通过 `--connection-file /absolute/path/automation-connection.json` 指定。CLI 会读取独立的本地控制令牌，不要在任务输出中打印或复制凭据。`describe` 可离线读取工具结构，`tools` 返回运行中服务的工具结构。
+
+小参数使用 `--args`；批量补全、多边形坐标或复杂模板规则使用 `--args-file` 或 `--stdin`，不要构造超长命令。Excel、图片等文件只传本机路径。列表按工具的分页参数读取，长任务只传操作 ID 并轮询状态。
 
 ## 查询、采集与导出
 

@@ -306,7 +306,8 @@ Chrome/Playwright 可以用于：
 
 - **MCP stdio**：运行客户端内置可执行程序的 `--mcp-stdio` 模式，无需安装 Node.js、Python 或其他运行环境。设置中复制 stdio 配置，填入客户端 MCP 配置；桥接器只向 stdout 输出逐行 JSON-RPC，自动读取本次服务的地址与令牌，重新开启服务无需重新复制令牌。
 - **MCP Streamable HTTP**：连接设置中显示的 `/mcp` 地址，请求头带 `Authorization: Bearer <本地控制令牌>`。服务采用无会话 JSON 响应，不提供 SSE（GET 返回 405），支持协议版本 2025-11-25、2025-06-18、2025-03-26、2024-11-05。端口与令牌每次开启改变，HTTP 客户端需要更新配置；各客户端 URL、请求头字段名称以其文档为准。
-- **CLI / Skill**：客户端可执行程序提供 `--cli` 模式，与 `automation/map-data-studio/SKILL.md` 一起打包；设置中可复制 CLI 命令和 Skill 路径。Skill 需要由使用它的 AI 客户端安装或加载，不会自动修改任何 AI 客户端配置。
+- **CLI / Skill**：默认跨客户端通道。客户端可执行程序提供 `status`、`tools`、`call`、`describe`、`doctor`、`open` 和 `skill install`，并兼容旧 `--cli` 模式；与 `automation/map-data-studio/SKILL.md` 一起打包。Skill 安装命令备份并复制文件，当前 AI 会话仍需由对应客户端重新加载。
+- CLI 小参数使用 `--args`；批量补全、多边形坐标与复杂模板规则使用 `--args-file` 或 `--stdin`，单次 JSON 对象上限 16 MiB。文件型数据只传路径，结果列表继续分页，避免系统命令行长度和 AI 上下文限制。
 
 本机控制接口为 `POST /api/control`，请求体 `{"action":"get_status","arguments":{}}`，使用相同认证。MCP 公开工具目录由 `automation/tools.json` 维护。支持读取省市、切换城市、查询条件、逐页查询、分页读取主点与子点、读取全部图片链接、勾选纳入、递归详情采集、用户多边形范围补点、取消、手动补点、自定义类型、备注、历史与 Excel 导出。
 
@@ -317,25 +318,25 @@ AI 控制与 GUI 共用数据：切换城市清空现有点位，只定位不查
 CLI 示例（内置程序及连接文件绝对路径以设置中显示为准；Windows PowerShell 的引号路径前加 `&`）：
 
 ```sh
-'/path/to/map-data-studio' --cli status
-'/path/to/map-data-studio' --cli tools
-'/path/to/map-data-studio' --cli call list_provinces
-'/path/to/map-data-studio' --cli call list_cities --args '{"provinceId":3761}'
-'/path/to/map-data-studio' --cli call select_city --args '{"provinceId":3761,"cityId":1264}'
+'/path/to/map-data-studio' status --json
+'/path/to/map-data-studio' tools --json
+'/path/to/map-data-studio' call list_provinces
+'/path/to/map-data-studio' call list_cities --args '{"provinceId":3761}'
+'/path/to/map-data-studio' call select_city --args '{"provinceId":3761,"cityId":1264}'
 # 读取 status，等 select_city 的 operationId 完成后再执行后续步骤
-'/path/to/map-data-studio' --cli call set_query --args '{"categories":["景点"],"keyword":"博物馆"}'
-'/path/to/map-data-studio' --cli call start_query
+'/path/to/map-data-studio' call set_query --args '{"categories":["景点"],"keyword":"博物馆"}'
+'/path/to/map-data-studio' call start_query
 # 等查询完成后分页读取或采集；采集完成后导出
-'/path/to/map-data-studio' --cli call list_pois --args '{"page":1,"pageSize":100}'
-'/path/to/map-data-studio' --cli call start_collection
-'/path/to/map-data-studio' --cli call export_excel --args '{"path":"/absolute/existing-directory/南昌-POI.xlsx"}'
+'/path/to/map-data-studio' call list_pois --args '{"page":1,"pageSize":100}'
+'/path/to/map-data-studio' call start_collection
+'/path/to/map-data-studio' call export_excel --args '{"path":"/absolute/existing-directory/南昌-POI.xlsx"}'
 ```
 
 Excel 自动导出需要绝对 `.xlsx` 路径和已存在目录，拒绝覆盖文件；等待操作完成并得到返回路径再报告保存成功。导出仍包含主点、后代点位与任务日志。当前未提供远程公网服务，云端 AI 客户端无法直接访问用户电脑的 localhost；此入口面向可运行本地 MCP 或访问本机 HTTP 的 AI 客户端。
 
 协议参考：[MCP transports](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)、[MCP tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)。
 
-控制程序使用 Rust 实现，复用桌面应用的可执行文件。`--mcp-stdio` / `--cli` 在初始化桌面窗口之前分流，不打开额外工作台，也不读取高德密钥。设置生成的 MCP 配置直接指定该程序及模式参数；打包后用户无需准备编程环境。Node.js 仅用于项目开发、前端构建和开发测试。
+控制程序使用 Rust 实现，复用桌面应用的可执行文件。`--mcp-stdio`、顶层 CLI 命令及兼容的 `--cli` 在初始化桌面窗口之前分流，不读取高德密钥。业务命令会在需要时启动工作台。设置生成的 MCP 配置直接指定该程序及模式参数；打包后用户无需准备编程环境。Node.js 仅用于项目开发、前端构建和开发测试。
 
 ## 22. 用户 Excel 模板与 AI 补充字段
 
