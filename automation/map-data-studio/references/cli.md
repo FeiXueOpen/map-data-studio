@@ -13,6 +13,8 @@ CLI 是跨 AI 客户端的默认控制通道，随桌面程序发布，不依赖
 "<程序>" call <tool> --args '<JSON对象>'
 "<程序>" call <tool> --args-file /绝对路径/request.json
 "<程序>" call <tool> --stdin
+"<程序>" call <tool> --args '<JSON对象>' --wait --timeout 900 --json
+"<程序>" wait <operationId> --timeout 900 --json
 "<程序>" skill install --client auto --json
 ```
 
@@ -33,4 +35,4 @@ CLI 是跨 AI 客户端的默认控制通道，随桌面程序发布，不依赖
 "<程序>" call supplement_pois --args-file /tmp/supplements.json
 ```
 
-不要在命令、日志或答复中输出 `automation-connection.json` 的令牌。长任务返回 `operationId` 后，用 `status` 或 `call get_status` 轮询，直到完成、失败或取消。列表使用工具自身的 `page`、`pageSize` 分页，不让一次 CLI 输出承载全部城市数据。
+不要在命令、日志或答复中输出 `automation-connection.json` 的令牌。启动长任务时优先加 `--wait`，CLI 会在本机轮询并只向 AI 返回最终结果；已有 `operationId` 时使用 `wait`。只有诊断或恢复未知状态时才调用完整 `status`，单个任务检查优先用 `get_operation`。列表使用工具自身的 `page`、`pageSize` 分页，不让一次 CLI 输出承载全部城市数据。

@@ -2,6 +2,7 @@
 // Query every discovered ID once; preserve each parent-child association.
 export async function collectChildren<T extends { id: string; children: T[] }>(options: {
   ids: string[]
+  includeChildren?: boolean
   active: () => boolean
   request: (ids: string[]) => Promise<T[]>
   queued: (id: string) => void
@@ -20,6 +21,7 @@ export async function collectChildren<T extends { id: string; children: T[] }>(o
         const record = records.find((item) => item.id === id)
         options.result(id, record, record ? undefined : new Error('接口未返回该 POI 详情'))
         if (!record) continue
+        if (options.includeChildren === false) continue
         const children = record.children.filter((child) => child.id && child.id !== record.id)
         options.discover(record, children)
         for (const child of children) {

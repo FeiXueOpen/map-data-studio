@@ -349,11 +349,12 @@ export function useWorkbench() {
       if (token === collectionGeneration) { error.value = errorMessage(cause); areaProgress.value = ''; isCollecting.value = false }
     }
   }
-  async function startCollection(retry = false, scopeId = '') {
+  async function startCollection(retry = false, scopeId = '', poiIds?: string[], includeChildren = true) {
     if (isCollecting.value || isPreviewing.value || areaTarget.value || !district.value) return
+    const explicit = poiIds ? new Set(poiIds) : undefined
     const scope = scopeId ? descendantIds([scopeId], children.value) : includedTree.value
-    const targets = pois.value.filter((poi) => (scopeId ? poi.id === scopeId : poi.included) && (retry ? poi.status === 'error' : poi.status !== 'done'))
-    const childTargets = children.value.filter((poi) => scope.has(poi.parentId) && (retry ? poi.status === 'error' : poi.status !== 'done'))
+    const targets = pois.value.filter((poi) => (explicit ? explicit.has(poi.id) : scopeId ? poi.id === scopeId : poi.included) && (retry ? poi.status === 'error' : poi.status !== 'done'))
+    const childTargets = children.value.filter((poi) => (explicit ? explicit.has(poi.id) : includeChildren && scope.has(poi.parentId)) && (retry ? poi.status === 'error' : poi.status !== 'done'))
     if (!targets.length && !childTargets.length) { notify('没有待采集点位'); return }
     const token = ++collectionGeneration
     const job = reactive<Job>({ id: crypto.randomUUID(), city: city.value, adcode: district.value.adcode,
@@ -373,7 +374,7 @@ export function useWorkbench() {
     job.childTotal = ids.filter((id) => !rootIds.has(id)).length
     const recordsById = new Map<string, Poi>()
     const errorsById = new Map<string, string>()
-    await collectChildren({ ids, active: () => token === collectionGeneration, request: poiDetails,
+    await collectChildren({ ids, includeChildren, active: () => token === collectionGeneration, request: poiDetails,
       queued: () => { job.total++; job.childTotal!++ },
       result: (id, record, cause) => {
         const related = [...pois.value.filter((poi) => poi.id === id), ...children.value.filter((poi) => poi.id === id)]
@@ -429,21 +430,40 @@ export function useWorkbench() {
     let batchId:string|undefined
     try {
       if (!automatic && options.engine==='baidu') {imageProgress.value='准备百度批量搜索（共用一个浏览器）';batchId=await prepareBaiduBatch(unique,options);if(token!==imageGeneration)return}
-      for (const [index, poi] of unique.entries()) {
-        if (token !== imageGeneration) return
-        imageProgress.value = `${automatic ? '保存高德图片' : '联网补图'} ${index + 1}/${unique.length} · ${poi.name}`
-        try {
-          const result = await downloadPoiImages(poi, options, automatic,batchId)
-          if (token !== imageGeneration) return
-          for (const record of [...pois.value, ...children.value].filter(p => p.id === poi.id)) mergeDownloads(record, result)
-          saved += result.images.length; missing += Math.max(0, result.requested - result.images.length)
-          imageResults.value.push({id: poi.id, parentId: poi.parentId, name: poi.name, directory: result.directory, saved: result.images.length, requested: result.requested, failures: result.failures})
-        } catch(cause) {
-          if (token !== imageGeneration) return
-          missing += automatic ? poi.photos.length : options.count
-          imageResults.value.push({id: poi.id, parentId: poi.parentId, name: poi.name, directory: options.directory || '', saved: 0, requested: automatic ? poi.photos.length : options.count, failures: [errorMessage(cause)]})
+      const results: (typeof imageResults.value[number] | undefined)[] = Array(unique.length)
+      const nameLocks = new Map<string, Promise<void>>()
+      let cursor = 0, completed = 0
+      const worker = async () => {
+        while (token === imageGeneration) {
+          const index = cursor++
+          if (index >= unique.length) return
+          const poi = unique[index]!
+          imageProgress.value = `${automatic ? '保存高德图片' : '联网补图'} ${completed}/${unique.length} · ${poi.name}`
+          const previous = nameLocks.get(poi.name) || Promise.resolve()
+          let release!: () => void
+          const current = new Promise<void>((resolve) => { release = resolve })
+          nameLocks.set(poi.name, previous.then(() => current))
+          try {
+            await previous
+            const result = await downloadPoiImages(poi, options, automatic,batchId)
+            if (token !== imageGeneration) return
+            for (const record of [...pois.value, ...children.value].filter(p => p.id === poi.id)) mergeDownloads(record, result)
+            saved += result.images.length; missing += Math.max(0, result.requested - result.images.length)
+            results[index] = {id: poi.id, parentId: poi.parentId, name: poi.name, directory: result.directory, saved: result.images.length, requested: result.requested, failures: result.failures}
+          } catch(cause) {
+            if (token !== imageGeneration) return
+            const requested = automatic ? poi.photos.length : options.count
+            missing += requested
+            results[index] = {id: poi.id, parentId: poi.parentId, name: poi.name, directory: options.directory || '', saved: 0, requested, failures: [errorMessage(cause)]}
+          } finally {
+            release()
+            completed++
+            if (token === imageGeneration) imageProgress.value = `${automatic ? '保存高德图片' : '联网补图'} ${completed}/${unique.length}`
+          }
         }
       }
+      await Promise.all(Array.from({length: Math.min(3, unique.length)}, worker))
+      imageResults.value = results.filter((row): row is NonNullable<typeof row> => !!row)
       imageReport.value = `${automatic ? '高德图片保存' : '联网补图'}完成：${unique.length} 个点位，已保存／复用 ${saved} 张${missing ? `，缺少 ${missing} 张（请查看失败记录）` : ''}`
       notify(imageReport.value)
       return imageResults.value
@@ -460,7 +480,7 @@ export function useWorkbench() {
     isExporting.value = true
     error.value = ''
     try {
-      await downloadImages([...selected,...scopedChildren].filter(p=>p.source==='amap'&&p.photos.length>0&&(!options.photoPoiIds||options.photoPoiIds.includes(p.id))),{count:3,ratio:'original',engine:'bing',minWidth:0},true)
+      await downloadImages([...selected,...scopedChildren].filter(p=>p.source==='amap'&&p.photos.length>0&&options.photoPoiIds?.includes(p.id)),{count:3,ratio:'original',engine:'bing',minWidth:0},true)
       const mainSnapshot:Poi[]=JSON.parse(JSON.stringify(selected)), childSnapshot:Poi[]=JSON.parse(JSON.stringify(scopedChildren))
       const path = await exportWorkbook(mainSnapshot, childSnapshot, JSON.parse(JSON.stringify(jobs.value)), options.parentId ? `${roots[0]!.name}${options.childrenOnly ? '-子点位' : ''}` : city.value, destination)
       if (path) notify('Excel 已保存'); else notify('已取消导出')

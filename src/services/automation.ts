@@ -10,7 +10,7 @@ import { descendantIds } from './collectChildren'
 import {getDefaultExportFormat} from './scenicExport'
 
 type Workbench = ReturnType<typeof useWorkbench>
-type Operation = { id: string; action: string; state: 'running' | 'completed' | 'failed' | 'cancelled'; startedAt: string; finishedAt?: string; result?: unknown; error?: string }
+type Operation = { id: string; action: string; state: 'running' | 'completed' | 'failed' | 'cancelled'; startedAt: string; finishedAt?: string; durationMs?: number; result?: unknown; error?: string }
 type Schema = { type?: string; required?: string[]; properties?: Record<string, Schema>; additionalProperties?: boolean; items?: Schema; minimum?: number; maximum?: number; minItems?: number; maxItems?: number; minLength?: number; maxLength?: number; pattern?: string; enum?: unknown[] }
 export function validateArguments(action: string, args: unknown): asserts args is Record<string, any> {
   const tool = catalog.find((item) => item.name === action)
@@ -45,7 +45,9 @@ export function createAutomationController(w: Workbench, regions = { getCities, 
   const operations: Operation[] = []
   const selections = new Map<string, any>()
   const supplementTasks = new Map<string, any>()
-  const fingerprint = () => JSON.stringify([w.city.value, [...w.pois.value, ...w.children.value].map(p=>[p.id,p.parentId,p.collectedAt]).sort()])
+  // A selection remains valid while details, supplements, or children are added.
+  // A new city/query replaces the root POI identity set and invalidates it.
+  const fingerprint = () => JSON.stringify([w.city.value, w.pois.value.map(p=>p.id).sort()])
   const selection = (id: string) => {
     const result=selections.get(id)
     if(!result) throw new Error('筛选结果不存在')
@@ -54,6 +56,22 @@ export function createAutomationController(w: Workbench, regions = { getCities, 
   }
   const publicSource = (value: string) => { const url=new URL(value); if(!['http:','https:'].includes(url.protocol)||url.username||url.password) throw new Error('来源需为公开HTTP(S)网址'); return value }
   const numeric = (value: unknown) => value !== null && value !== undefined && String(value).trim() !== '' && typeof value!=='boolean' && Number.isFinite(Number(value)) ? Number(value) : null
+  const sameName = (left: string, right: string) => left.trim() === right.trim() || left.trim().replace(/[省市]$/, '') === right.trim().replace(/[省市]$/, '')
+  const resolveCity = async (provinceName: string, cityName: string) => {
+    const provinces = await regions.getProvinces()
+    const province = provinces.find((item) => sameName(item.name, provinceName))
+    if (!province) throw new Error(`未找到省份：${provinceName}`)
+    const cities = await regions.getCities(province.id)
+    const city = cities.find((item) => sameName(item.name, cityName))
+    if (!city) throw new Error(`未在${province.name}找到城市：${cityName}`)
+    return { province, city }
+  }
+  const setQuery = (categories: string[], keyword = '') => {
+    if (new Set(categories).size !== categories.length || categories.some((name: string) => !w.categories.value.some((c) => c.name === name))) throw new Error('查询类型未知或重复，请先 list_categories')
+    if (!categories.length && !keyword.trim()) throw new Error('请选择类型或输入关键词')
+    for (const category of w.categories.value) if (w.selectedTypes.value.includes(category.name) !== categories.includes(category.name)) w.toggleType(category.name)
+    w.keyword.value = keyword
+  }
   const saveSelection = (records: Poi[], data: Record<string, any>) => {
     const result={selectionId:crypto.randomUUID(),city:w.city.value,createdAt:new Date().toISOString(),...data,poiIds:records.map(p=>p.id),items:records.map(p=>({id:p.id,name:p.name,parentId:p.parentId})),fingerprint:fingerprint(),scopeNote:'仅针对当前加载且符合条件的点位；AI推荐或高德评分不是实测客流排名'}
     if(selections.size>=50) selections.delete(selections.keys().next().value!)
@@ -88,7 +106,7 @@ export function createAutomationController(w: Workbench, regions = { getCities, 
   }
   function photoRecords(records: Poi[], ids?: string[]) {
     if(ids && (new Set(ids).size!==ids.length || ids.some(id=>!records.some(p=>p.id===id))))throw new Error('photoPoiIds 必须属于实际导出点位且不能重复')
-    return records.filter(p=>p.source==='amap' && p.photos.length>0 && (!ids || ids.includes(p.id)))
+    return ids ? records.filter(p=>p.source==='amap' && p.photos.length>0 && ids.includes(p.id)) : []
   }
   function start(action: string, task: () => Promise<unknown>) {
     idle()
@@ -107,9 +125,15 @@ export function createAutomationController(w: Workbench, regions = { getCities, 
       if (operation.state !== 'running') return
       operation.state = 'failed'; operation.error = cause instanceof Error ? cause.message : '操作失败'
       w.error.value = operation.error
-    }).finally(() => { operation.finishedAt ||= new Date().toISOString(); onBusy(operations.some((op) => op.state === 'running')) })
+    }).finally(() => { operation.finishedAt ||= new Date().toISOString(); operation.durationMs = Math.max(0, Date.parse(operation.finishedAt) - Date.parse(operation.startedAt)); onBusy(operations.some((op) => op.state === 'running')) })
     return { operationId: operation.id, state: operation.state }
   }
+  const operationView = (operation: Operation) => clone({
+    ...operation,
+    durationMs: operation.durationMs ?? Math.max(0, Date.now() - Date.parse(operation.startedAt)),
+    stage: operation.state !== 'running' ? operation.state : w.imageProgress?.value ? 'images' : w.areaProgress.value ? 'area' : w.isPreviewing.value ? 'querying' : w.isCollecting.value ? 'collecting' : w.isExporting.value ? 'exporting' : w.cityBusy.value ? 'selecting_city' : 'running',
+    progress: operation.state !== 'running' ? undefined : { status: w.status.value, preview: w.previewProgress.value, activeJob: w.activeJob.value && { total: w.activeJob.value.total, completed: w.activeJob.value.completed, failed: w.activeJob.value.failed, childTotal: w.activeJob.value.childTotal, childCompleted: w.activeJob.value.childCompleted } },
+  })
   return async function execute(action: string, input: unknown = {}): Promise<Record<string, unknown>> {
     validateArguments(action, input)
     const a = input
@@ -133,6 +157,11 @@ export function createAutomationController(w: Workbench, regions = { getCities, 
         return saveSelection(selected,{instruction:a.instruction,basis:a.basis,requested:a.limit||records.length,evidence,shortfall:Math.max(0,(a.limit||records.length)-records.length)})
       }
       case 'get_poi_selection': {const {fingerprint:_,...result}=selection(a.selectionId);return clone(result)}
+      case 'get_operation': {
+        const operation = operations.find((item) => item.id === a.operationId)
+        if (!operation) throw new Error('操作不存在或已从历史记录中清理')
+        return operationView(operation)
+      }
       case 'create_supplement_task': {
         ready();const records=templateRecords(a);if(!records.length)throw new Error('补全范围没有点位');const defaults=getDefaultExportFormat();const fields=a.fields||defaults.columns.map(c=>c.field);const initial=templateGaps(records,fields,1,100)
         const supplied=a.fieldRules||[]
@@ -166,7 +195,7 @@ export function createAutomationController(w: Workbench, regions = { getCities, 
         status: w.status.value, previewState: w.previewState.value, previewProgress: w.previewProgress.value, queryDirty: w.queryDirty.value, hasMore: w.hasMore.value,
         imageBrowserStatus: w.imageBrowserStatus?.value, imageProgress: w.imageProgress?.value, imageReport: w.imageReport?.value, imageResults: w.imageResults?.value, isDownloadingImages: w.isDownloadingImages?.value, areaProgress: w.areaProgress.value, areaNotice: w.areaNotice.value, areaSelection: w.areaSelection.value, mapReady: w.mapReady.value, total: w.pois.value.length, children: w.children.value.length, included: w.includedCount.value,
         failed: w.failedCount.value, query: { categories: w.selectedTypes.value, keyword: w.keyword.value }, error: w.error.value, activeJob: w.activeJob.value,
-        operations, history: w.jobs.value.slice(0, 50), coordinateSystem: 'GCJ-02' })
+        operations: operations.map(operationView), history: w.jobs.value.slice(0, 20), coordinateSystem: 'GCJ-02' })
       case 'list_provinces': return { provinces: await regions.getProvinces() }
       case 'list_cities': return { cities: await regions.getCities(a.provinceId) }
       case 'select_city': return start(action, async () => {
@@ -176,14 +205,28 @@ export function createAutomationController(w: Workbench, regions = { getCities, 
         if (!city) throw new Error('城市 ID 不属于指定省份')
         await w.changeCity({ province, city }); return { city: w.city.value, adcode: w.district.value?.adcode }
       })
+      case 'select_city_by_name': return start(action, async () => {
+        const selected = await resolveCity(a.province, a.city)
+        await w.changeCity(selected)
+        return { city: w.city.value, adcode: w.district.value?.adcode, provinceId: selected.province.id, cityId: selected.city.id }
+      })
       case 'set_query': {
         ready()
-        if (new Set(a.categories).size !== a.categories.length || a.categories.some((name: string) => !w.categories.value.some((c) => c.name === name))) throw new Error('查询类型未知或重复，请先 list_categories')
-        if (!a.categories.length && !(a.keyword || '').trim()) throw new Error('请选择类型或输入关键词')
-        for (const category of w.categories.value) if (w.selectedTypes.value.includes(category.name) !== a.categories.includes(category.name)) w.toggleType(category.name)
-        w.keyword.value = a.keyword || ''; return { categories: w.selectedTypes.value, keyword: w.keyword.value }
+        setQuery(a.categories, a.keyword || '')
+        return { categories: w.selectedTypes.value, keyword: w.keyword.value }
       }
-      case 'start_query': ready(); if (a.append && !w.hasMore.value) throw new Error('没有待加载的后续页'); return start(action, async () => { await w.runPreview(a.append || false, a.autoCollect !== false); return { total: w.pois.value.length, children: w.children.value.length, state: w.previewState.value, job: w.activeJob.value } })
+      case 'start_query': {
+        idle()
+        if ((a.province && !a.city) || (a.city && !a.province)) throw new Error('province 和 city 必须同时提供')
+        if (a.append && (a.city || a.categories || !w.hasMore.value)) throw new Error('追加查询不能切换城市、修改条件，且必须存在后续页')
+        return start(action, async () => {
+          if (a.city) await w.changeCity(await resolveCity(a.province, a.city))
+          if (!w.district.value) throw new Error('城市尚未定位，请提供 province/city，或先选择城市')
+          if (a.categories || a.keyword !== undefined) setQuery(a.categories || [...w.selectedTypes.value], a.keyword ?? w.keyword.value)
+          await w.runPreview(a.append || false, a.autoCollect === true)
+          return { total: w.pois.value.length, children: w.children.value.length, state: w.previewState.value, job: w.activeJob.value }
+        })
+      }
       case 'list_pois': {
         if (a.parentId) find(a.parentId)
         const source = a.parentId ? w.childPois(a.parentId) : w.pois.value
@@ -197,7 +240,12 @@ export function createAutomationController(w: Workbench, regions = { getCities, 
         ready(); const selected = a.ids.map((id: string) => { const poi = w.pois.value.find((p) => p.id === id); if (!poi) throw new Error('只能设置已加载的主点位'); return poi })
         selected.forEach((p: Poi) => { p.included = a.included }); return { updated: selected.length, included: w.includedCount.value }
       }
-      case 'start_collection': ready(); if (!w.includedCount.value) throw new Error('没有纳入采集的主点位'); return start(action, async () => { await w.startCollection(a.retryOnly || false); return { job: w.activeJob.value, children: w.children.value.length } })
+      case 'start_collection': {
+        ready()
+        const scoped = a.selectionId || a.poiIds ? templateRecords(a) : undefined
+        if (!scoped?.length && !w.includedCount.value) throw new Error('没有纳入采集或明确指定的点位')
+        return start(action, async () => { await w.startCollection(a.retryOnly || false, '', scoped?.map(p => p.id), a.includeChildren === true); return { job: w.activeJob.value, children: w.children.value.length, poiIds: scoped?.map(p => p.id), includeChildren: a.includeChildren === true } })
+      }
       case 'request_area_selection': {
         ready()
         if (!a.id && !a.name) throw new Error('请提供点位 id 或 name')
@@ -240,7 +288,7 @@ export function createAutomationController(w: Workbench, regions = { getCities, 
       }
       case 'inspect_excel_template': {
         idle()
-        return start(action, () => inspectExcelTemplate(a.path, a.headerRow || 1, a.sheetName))
+        return inspectExcelTemplate(a.path, a.headerRow || 1, a.sheetName)
       }
       case 'supplement_poi': {
         ready()
@@ -256,7 +304,8 @@ export function createAutomationController(w: Workbench, regions = { getCities, 
         ready()
         const records = templateRecords(a)
         if (!records.length) throw new Error('指定范围内没有可导出的点位')
-        const photos=photoRecords(records,a.photoPoiIds)
+        const mappedPhotos=a.columnMap.some((column:any)=>['originalPhotos','downloadedPhotos','imageSources'].includes(column.field))
+        const photos=photoRecords(records,a.photoPoiIds ?? (mappedPhotos ? records.map(p=>p.id) : []))
         const selectionAudit=a.selectionId ? (()=>{const {fingerprint:_,...visible}=selection(a.selectionId);return clone(visible)})() : undefined
         const supplementAudit=[...supplementTasks.values()].filter(t=>t.fingerprint===fingerprint() && t.scope.poiIds.some((id:string)=>records.some(p=>p.id===id))).map(t=>({taskId:t.taskId,instruction:t.instruction,fields:t.fields,fieldRules:t.fieldRules,poiIds:t.scope.poiIds,missingCount:templateGaps(templateRecords(t.scope),t.fields).total}))
         return start(action, async () => {

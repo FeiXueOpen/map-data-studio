@@ -14,7 +14,7 @@ const fieldsURL = `data:text/javascript;base64,${Buffer.from(fieldsJS).toString(
 const childrenSource = (await readFile('src/services/collectChildren.ts', 'utf8')).replace(/^import .*$/gm, '')
 const childrenJS = ts.transpileModule(childrenSource, { compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext } }).outputText
 const childrenURL = `data:text/javascript;base64,${Buffer.from(childrenJS).toString('base64')}`
-const { outputText } = ts.transpileModule(`import { rawPaths } from '${rawURL}'; import { templateGaps, validateSupplements, resolvedField, formatTicketPrice } from '${fieldsURL}'; import { descendantIds } from '${childrenURL}'; const catalog = ${JSON.stringify(catalog)}; const getDefaultExportFormat=()=>(${JSON.stringify(standardFormat)}); const getCities = async () => []; const getProvinces = async () => []; const exportExcelTemplate = async (records, options) => { globalThis.__selectedExport = records; globalThis.__exportOptions = options; return {path:options.path, rows:records.length} };\n${source}`, { compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext } })
+const { outputText } = ts.transpileModule(`import { rawPaths } from '${rawURL}'; import { templateGaps, validateSupplements, resolvedField, formatTicketPrice } from '${fieldsURL}'; import { descendantIds } from '${childrenURL}'; const catalog = ${JSON.stringify(catalog)}; const getDefaultExportFormat=()=>(${JSON.stringify(standardFormat)}); const getCities = async () => []; const getProvinces = async () => []; const inspectExcelTemplate = async (path,headerRow,sheetName) => ({path,headerRow,sheetName,sheets:[]}); const exportExcelTemplate = async (records, options) => { globalThis.__selectedExport = records; globalThis.__exportOptions = options; return {path:options.path, rows:records.length} };\n${source}`, { compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext } })
 const { createAutomationController, validateArguments } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`)
 const ref = (value) => ({ value })
 const point = (id, parentId = '') => ({ id, parentId, name: `点位${id}`, category: '景点', address: '地址', location: [112.9,28.2], included: true, status: 'pending', photos: ['a','b','c','d','e'], children: [] })
@@ -67,6 +67,18 @@ test('city IDs are verified in their province and city changes do not initiate q
  await call('select_city',{provinceId:1,cityId:99}); await tick(); assert.equal((await call('get_status')).operations[0].state,'failed'); assert.equal(w.city.value,'杭州市')
  await call('select_city',{provinceId:1,cityId:2}); await tick(); assert.equal(w.city.value,'南昌市'); assert.equal(queries,0)
 })
+test('fast path combines city and query setup, exposes one-operation status and collects only a selection',async()=>{
+ const w=fixture();let preview,collection
+ w.runPreview=async(append,autoCollect)=>{preview={append,autoCollect};w.pois.value=[point('a'),point('b')];w.previewState.value='complete'}
+ w.startCollection=async(retry,scope,ids,includeChildren)=>{collection={retry,scope,ids,includeChildren};w.activeJob.value={status:'已完成',completed:ids.length,failed:0}}
+ const regions={getProvinces:async()=>[{id:1,name:'湖南省'}],getCities:async()=>[{id:2,name:'长沙市'}]};const call=createAutomationController(w,regions)
+ const query=await call('start_query',{province:'湖南',city:'长沙',categories:['景点'],keyword:'景区',autoCollect:false});await tick();assert.deepEqual(preview,{append:false,autoCollect:false});assert.equal(w.city.value,'长沙市');assert.equal(w.keyword.value,'景区')
+ const operation=await call('get_operation',{operationId:query.operationId});assert.equal(operation.state,'completed');assert.equal(typeof operation.durationMs,'number')
+ const selected=await call('filter_pois',{instruction:'前1',limit:1});const collect=await call('start_collection',{selectionId:selected.selectionId});await tick();assert.deepEqual(collection,{retry:false,scope:'',ids:['a'],includeChildren:false});assert.equal((await call('get_operation',{operationId:collect.operationId})).state,'completed')
+ await call('start_collection',{selectionId:selected.selectionId,includeChildren:true});await tick();assert.equal(collection.includeChildren,true)
+ w.pois.value[0].collectedAt='2026-10-16T00:00:00.000Z';w.children.value.push(point('child','a'));assert.equal((await call('get_poi_selection',{selectionId:selected.selectionId})).poiIds[0],'a')
+ const inspected=await call('inspect_excel_template',{path:'/tmp/template.xlsx',headerRow:2,sheetName:'数据'});assert.equal(inspected.path,'/tmp/template.xlsx');assert.equal(inspected.headerRow,2);assert.equal(inspected.operationId,undefined)
+})
 test('inclusion changes are atomic; failed exports are never reported as completed', async () => {
  const w=fixture(); w.pois.value=[point('0'),point('1')]; const call=createAutomationController(w)
  await assert.rejects(call('set_included',{ids:['0','missing'],included:false})); assert.equal(w.pois.value[0].included,true)
@@ -113,14 +125,13 @@ test('template child scope includes descendants of one parent and filters identi
  await assert.rejects(call('export_excel_template',{templatePath:'/tmp/t.xlsx',path:'/tmp/o.xlsx',sheetName:'子点位',parentId:'root',childrenOnly:true,columnMap:[{column:1,field:'name'}]}),/没有可导出/)
 })
 
-test('MCP query operation covers collection completion and passes the explicit query-only option',async()=>{
+test('AI query defaults to list-only and waits for collection only when explicitly requested',async()=>{
  const w=fixture();let finish;let received
  w.runPreview=async(append,autoCollect)=>{received={append,autoCollect};w.previewState.value='complete';w.isCollecting.value=autoCollect;if(autoCollect)await new Promise(resolve=>{finish=resolve});w.isCollecting.value=false}
- const call=createAutomationController(w);const op=await call('start_query');await tick();assert.deepEqual(received,{append:false,autoCollect:true})
- assert.equal((await call('get_status')).operations.find(o=>o.id===op.operationId).state,'running')
+ const call=createAutomationController(w);const listOnly=await call('start_query');await tick();assert.deepEqual(received,{append:false,autoCollect:false});assert.equal((await call('get_operation',{operationId:listOnly.operationId})).state,'completed')
+ const op=await call('start_query',{autoCollect:true});await tick();assert.equal(received.autoCollect,true);assert.equal((await call('get_status')).operations.find(o=>o.id===op.operationId).state,'running')
  finish();await tick();assert.equal((await call('get_status')).operations[0].state,'completed')
- await call('start_query',{autoCollect:false});await tick();assert.equal(received.autoCollect,false)
- const cancelled=await call('start_query');await tick();await call('cancel_operation');finish();await tick();assert.equal((await call('get_status')).operations.find(o=>o.id===cancelled.operationId).state,'cancelled')
+ const cancelled=await call('start_query',{autoCollect:true});await tick();await call('cancel_operation');finish();await tick();assert.equal((await call('get_status')).operations.find(o=>o.id===cancelled.operationId).state,'cancelled')
 })
 
 test('image supplements require a separate explicit tool and respect count, ratio and child scope',async()=>{

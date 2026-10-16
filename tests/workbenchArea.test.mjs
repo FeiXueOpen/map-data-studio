@@ -89,6 +89,13 @@ test('detail collection retains query business data and source snapshots for bot
  assert.deepEqual(w.pois.value[0].photos,['https://example.com/search','https://example.com/detail'])
 })
 
+test('main-only detail collection does not discover or request embedded children',async()=>{
+ const w=fixture();w.pois.value=[{...poi('root'),status:'pending'}];w.children.value=[{...poi('existing-child'),parentId:'root',status:'pending'}]
+ const requested=[];globalThis.__areaDetails=async ids=>{requested.push(...ids);return ids.map(id=>({...poi(id),status:'done',children:[{...poi('embedded-child'),status:'pending'}],raw:{id,business:{rating:'4.8'}}}))}
+ await w.startCollection(false,'',undefined,false)
+ assert.deepEqual(requested,['root']);assert.equal(w.pois.value[0].status,'done');assert.equal(w.pois.value[0].raw.business.rating,'4.8');assert.equal(w.children.value.length,1);assert.equal(w.children.value[0].status,'pending')
+})
+
 test('AOI-first request automatically searches full boundary rings and filters bounding-box outsiders',async()=>{
  const w=fixture();const ring=[...polygon.slice(0,2),...[...Array(210)].map((_,i)=>[113,27+i/105]),polygon[3]]
  globalThis.__poiAoi=async id=>{assert.equal(id,'root');return {boundaries:[ring],raw:{aois:[{id,polyline:'original'}]}}}
@@ -117,16 +124,17 @@ test('query and detail collection retain photo links without downloading files',
  globalThis.__downloadImages=async()=>{calls++;return {images:[],requested:0,failures:[],directory:'/tmp'}}
  await w.startCollection();assert.equal(calls,0);assert.equal(w.isDownloadingImages.value,false);assert.equal(w.pois.value[0].photos.length,1);globalThis.__downloadImages=undefined
 })
-test('Excel export downloads only its main rows by default and child export downloads only child rows',async()=>{
+test('Excel export skips implicit images and downloads only explicitly requested rows',async()=>{
  const w=fixture();w.pois.value=[{...poi('root'),photos:['https://example.com/root']}];w.children.value=[{...poi('child'),parentId:'root',photos:['https://example.com/child']}]
  const calls=[],exports=[];globalThis.__downloadImages=async(p,_options,automatic)=>{assert.equal(automatic,true);calls.push(p.id);return {images:[{path:`/tmp/${p.id}.jpg`,source:'amap'}],requested:1,failures:[],directory:'/tmp'}}
  globalThis.__exportWorkbook=async(main,children)=>{exports.push({main,children});return '/tmp/export.xlsx'}
- await w.exportData('/tmp/main.xlsx');assert.deepEqual(calls,['root']);assert.equal(exports[0].children.length,0);assert.equal(exports[0].main[0].downloadedImages[0].path,'/tmp/root.jpg')
- calls.length=0;await w.exportData('/tmp/children.xlsx',{parentId:'root',childrenOnly:true});assert.deepEqual(calls,['child']);assert.equal(exports[1].main.length,0);assert.equal(exports[1].children.length,1)
+ await w.exportData('/tmp/main.xlsx');assert.deepEqual(calls,[]);assert.equal(exports[0].children.length,0);assert.equal(exports[0].main[0].downloadedImages,undefined)
+ await w.exportData('/tmp/main-images.xlsx',{photoPoiIds:['root']});assert.deepEqual(calls,['root']);assert.equal(exports[1].main[0].downloadedImages[0].path,'/tmp/root.jpg')
+ calls.length=0;await w.exportData('/tmp/children.xlsx',{parentId:'root',childrenOnly:true,photoPoiIds:['child']});assert.deepEqual(calls,['child']);assert.equal(exports[2].main.length,0);assert.equal(exports[2].children.length,1)
  globalThis.__downloadImages=undefined;globalThis.__exportWorkbook=undefined
 })
 test('explicit supplements retain requested counts and stop scheduling after cancellation',async()=>{
- const w=fixture();let finish;const calls=[]
- globalThis.__downloadImages=async(p,options,automatic)=>{calls.push({p,options,automatic});await new Promise(r=>{finish=r});return {images:[],failures:[],requested:3,directory:'/tmp'}}
- const task=w.downloadImages([poi('one'),poi('two')],{count:3,ratio:'3:4',engine:'bing',minWidth:600});assert.equal(w.isCollecting.value,true);assert.equal(calls[0].automatic,false);assert.equal(calls[0].options.ratio,'3:4');w.cancelCollection();finish();await task;assert.equal(calls.length,1);assert.equal(w.isDownloadingImages.value,false);assert.equal(w.imageResults.value.length,0);globalThis.__downloadImages=undefined
+ const w=fixture();const finishes=[],calls=[]
+ globalThis.__downloadImages=async(p,options,automatic)=>{calls.push({p,options,automatic});await new Promise(r=>{finishes.push(r)});return {images:[],failures:[],requested:3,directory:'/tmp'}}
+ const task=w.downloadImages([poi('one'),poi('two'),poi('three'),poi('four')],{count:3,ratio:'3:4',engine:'bing',minWidth:600});await new Promise(resolve=>setImmediate(resolve));assert.equal(w.isCollecting.value,true);assert.equal(calls[0].automatic,false);assert.equal(calls[0].options.ratio,'3:4');w.cancelCollection();finishes.forEach(finish=>finish());await task;assert.equal(calls.length,3);assert.equal(w.isDownloadingImages.value,false);assert.equal(w.imageResults.value.length,0);globalThis.__downloadImages=undefined
 })

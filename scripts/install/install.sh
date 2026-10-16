@@ -10,7 +10,7 @@ while [ "$#" -gt 0 ]; do
   --version) version="${2:?缺少版本}"; shift 2;;
   --no-open) launch=no; shift;;
   --dry-run) dry=yes; shift;;
-  *) printf '参数：--client auto|codex|claude|doubao|none [--version v0.1.5] [--no-open] [--dry-run]\n'; exit 1;;
+  *) printf '参数：--client auto|codex|claude|doubao|none [--version v0.1.6] [--no-open] [--dry-run]\n'; exit 1;;
  esac
 done
 case "$client" in auto|codex|claude|doubao|none) ;; *) echo '未知AI客户端'; exit 1;; esac
@@ -19,7 +19,7 @@ case "$(uname -m)" in arm64) arch=arm64;; x86_64) arch=x64;; *) echo '不支持�
 if [ -z "$version" ]; then
  version=$(curl --fail --silent --show-error --location --max-time 30 https://api.github.com/repos/FeiXueOpen/map-data-studio/releases/latest | plutil -extract tag_name raw -o - -)
 fi
-[[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo '版本格式应为v0.1.5'; exit 1; }
+[[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo '版本格式应为v0.1.6'; exit 1; }
 name="map-data-studio-${version#v}-macos-${arch}.zip"
 base="https://github.com/FeiXueOpen/map-data-studio/releases/download/$version"
 target="$HOME/Applications/Map Data Studio.app"

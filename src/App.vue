@@ -121,7 +121,7 @@ async function closeWindow() { await appWindow?.close() }
           <div class="section-label keyword-label">关键词 <small>（可选）</small></div>
           <div class="search-input"><span>⌕</span><input :disabled="automationBusy" v-model="keyword" placeholder="例如：西湖、博物馆、咖啡" /></div>
           <button class="preview-button" :disabled="automationBusy || isPreviewing || cityBusy || isCollecting || !district" @click="runPreview()"><span>▶</span>{{ isPreviewing ? '正在查询…' : isCollecting ? '正在采集详情…' : '开始查询并采集' }}</button>
-          <p class="city-preview-note">{{ queryDirty ? '条件已修改，点击重新查询并采集' : previewState === 'idle' ? '点击后逐页查询，再采集详情与关联数据；导出时保存本次导出点位的高德图片。' : '自动查询全部可返回结果，并采集详情、子点位和图片。' }}</p>
+          <p class="city-preview-note">{{ queryDirty ? '条件已修改，点击重新查询并采集' : previewState === 'idle' ? '点击后逐页查询，再采集详情与关联数据；Excel导出默认不下载图片。' : '自动查询全部可返回结果，并采集详情、子点位和图片链接。' }}</p>
         </div>
 
         <div class="sidebar-foot">

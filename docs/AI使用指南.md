@@ -19,20 +19,21 @@
 | 阶段 | MCP 工具 | AI 应做的事 |
 | --- | --- | --- |
 | 看状态 | get_status | 保留需要保留的旧结果；判断是否忙碌 |
-| 选城市 | list_provinces、list_cities、select_city | 查询真实 ID，等待城市切换完成 |
-| 定查询 | list_categories、set_query | 根据任务设置类型、关键词 |
-| 查询采集 | start_query | 默认逐页查询后自动采详情、子点、图片链接；等操作完成 |
+| 选城市与查询 | start_query | 可直接传省、市、类型和关键词；原始数据/Top N 使用 autoCollect:false |
+| 查询采集 | start_query、start_collection | 先筛选；按 selectionId 补主点详情，明确需要时才递归关联子点 |
 | 筛选 | filter_pois、create_poi_selection | 根据可靠数值或有依据的 AI 名单确定数量和顺序 |
-| 看模板 | inspect_excel_template、get_default_export_format | 用户模板逐列映射；无模板用内置34列 |
+| 看模板 | inspect_excel_template、get_default_export_format | 用户模板同步返回并逐列映射；无模板用内置34列 |
 | 补全计划 | create_supplement_task、get_template_gaps | 把逐列规则提交，读取初始缺项所有分页 |
 | AI研究 | AI自己的搜索工具 | 官网/官方票务/政府优先，同名核对城市与地址 |
 | 回填 | supplement_pois、supplement_poi | 每字段真实来源；不覆盖高德非空值 |
 | 复核 | get_supplement_task、get_template_gaps | 记录未知字段与原因；缺项非零不能称全部补齐 |
 | 导出 | export_excel、export_excel_template | 新路径，等待最终完成，核对行数、来源与图片 |
 
-start_query 已自动采集时不要再次 start_collection；先查询后筛选采集可用 `autoCollect:false`，筛选纳入后再 start_collection。start_collection 也用于已有记录的补采和 `retryOnly:true` 失败重试。
+AI 的 `start_query` 默认只查询列表；仍建议原始数据、评分排序和 Top N 任务显式传 `autoCollect:false`。需要详情时用 `start_collection({selectionId,includeChildren:false})` 只补指定主点；只有明确传 `includeChildren:true` 才递归关联子点。若评分等筛选依据在列表中缺失，先补缺失候选项的主点详情，再筛选。只有明确传 `autoCollect:true` 才全量采集，之后不要再次 start_collection。
 
-耗时工具返回 operationId，AI 需轮询 get_status.operations 中相同 ID。请求超时不等于失败，重试前先查状态。主查询不直接下载图片；只有导出保存实际导出点位的高德图片。子点位图片随其独立导出保存，不默认跟着主景区下载。
+任务必需字段在高德详情后仍缺失，且用户没有要求仅高德、缺失留空或禁止联网时，AI 可以只对最终入选项联网查证并附来源。联网补充不能冒充高德字段，其他平台评分不得写入“高德评分”。普通查询不会因可选字段为空而启动联网研究。
+
+耗时工具返回 operationId。CLI 启动任务时优先加 `--wait`，已有 ID 使用 `wait <operationId>`；MCP 优先用 `get_operation` 查询单个任务，避免反复读取完整状态。请求超时不等于失败，重试前先查状态。导出默认不下载图片；明确传入非空 photoPoiIds，或模板映射本地图片字段时才保存高德原图。
 
 ## 3. 模板和逐列补填规则
 

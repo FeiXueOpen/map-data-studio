@@ -1,6 +1,6 @@
 [package]
 name = "map-data-studio"
-version = "0.1.5"
+version = "0.1.6"
 description = "Map Data Studio desktop application"
 authors = ["Map Data Studio"]
 edition = "2021"

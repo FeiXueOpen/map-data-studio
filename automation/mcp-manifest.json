@@ -22,6 +22,8 @@
       "call <tool> --args <json>",
       "call <tool> --args-file <path>",
       "call <tool> --stdin",
+      "call <tool> --args <json> --wait --timeout <seconds>",
+      "wait <operationId> --timeout <seconds> --json",
       "skill install --client auto --json"
     ]
   },

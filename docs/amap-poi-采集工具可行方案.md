@@ -311,9 +311,9 @@ Chrome/Playwright 可以用于：
 
 本机控制接口为 `POST /api/control`，请求体 `{"action":"get_status","arguments":{}}`，使用相同认证。MCP 公开工具目录由 `automation/tools.json` 维护。支持读取省市、切换城市、查询条件、逐页查询、分页读取主点与子点、读取全部图片链接、勾选纳入、递归详情采集、用户多边形范围补点、取消、手动补点、自定义类型、备注、历史与 Excel 导出。
 
-长任务立即返回 `operationId`，通过 `get_status` 查看 `operations` 的 `running/completed/failed/cancelled` 状态。当前会话保留最近 50 次 AI 操作；客户端可每隔 1～2 秒轮询，查询/采集期间工作台正常显示进度。并发客户端不能启动相互覆盖的修改；仍可读取状态和已经加载的数据。取消保留已完成结果。城市定位、Excel 写入不能取消。关闭控制服务停止新请求，已启动的业务任务由工作台取消按钮处理。
+长任务立即返回 `operationId`。CLI 可用 `call ... --wait` 或 `wait <operationId>` 在本机等待，MCP 使用 `get_operation` 读取单个任务的状态、阶段和耗时；仅诊断时读取完整 `get_status`。当前会话保留最近 50 次 AI 操作。并发客户端不能启动相互覆盖的修改；仍可读取状态和已经加载的数据。取消保留已完成结果。城市定位、Excel 写入不能取消。关闭控制服务停止新请求，已启动的业务任务由工作台取消按钮处理。
 
-AI 控制与 GUI 共用数据：切换城市清空现有点位，只定位不查询；`start_query` 逐页加载接口可返回的结果并显示到地图；`start_collection` 查询所有已纳入点位以及递归关联子点的详情和图片。`list_pois` 每页最多 100 条，指定 `parentId` 返回直接子点，`get_poi` 返回 API 提供的全部图片 URL。`search_area` 使用明确提供的 GCJ-02 多边形，不猜测官方景区边界。
+AI 控制与 GUI 共用数据：切换城市清空现有点位，只定位不查询；`start_query` 逐页加载接口可返回的结果并显示到地图；AI 调用 `start_collection` 默认只查询指定主点详情，明确传 `includeChildren:true` 时才递归采集关联子点。桌面界面与范围采集仍按完整采集流程处理。`list_pois` 每页最多 100 条，指定 `parentId` 返回直接子点，`get_poi` 返回 API 提供的全部图片 URL。`search_area` 使用明确提供的 GCJ-02 多边形，不猜测官方景区边界。
 
 CLI 示例（内置程序及连接文件绝对路径以设置中显示为准；Windows PowerShell 的引号路径前加 `&`）：
 
@@ -328,7 +328,7 @@ CLI 示例（内置程序及连接文件绝对路径以设置中显示为准；W
 '/path/to/map-data-studio' call start_query
 # 等查询完成后分页读取或采集；采集完成后导出
 '/path/to/map-data-studio' call list_pois --args '{"page":1,"pageSize":100}'
-'/path/to/map-data-studio' call start_collection
+'/path/to/map-data-studio' call start_collection --args '{"includeChildren":false}' --wait --json
 '/path/to/map-data-studio' call export_excel --args '{"path":"/absolute/existing-directory/南昌-POI.xlsx"}'
 ```
 
@@ -342,7 +342,7 @@ Excel 自动导出需要绝对 `.xlsx` 路径和已存在目录，拒绝覆盖�
 
 支持“提供空白 Excel → AI 读取模板 → MCP 采集指定城市景区 → AI 查询缺失字段 → 按原模板生成填写版 Excel”的流程。
 
-- `inspect_excel_template`：读取本机绝对路径的 `.xlsx` 文件，返回操作 ID；结果包含工作表名称、指定表头行的列名和编号、样例行、合并区域、数值格式以及内置字段目录。AI 据此确定目标工作表、表头、首个数据行及列映射。云端附件必须先由 AI 客户端的文件工具放到运行桌面客户端的电脑；MCP 不能直接读取另一台电脑或云沙箱中的附件。
+- `inspect_excel_template`：同步读取本机绝对路径的 `.xlsx` 文件并直接返回结果，无需轮询；结果包含工作表名称、指定表头行的列名和编号、样例行、合并区域、数值格式以及内置字段目录。AI 据此确定目标工作表、表头、首个数据行及列映射。云端附件必须先由 AI 客户端的文件工具放到运行桌面客户端的电脑；MCP 不能直接读取另一台电脑或云沙箱中的附件。
 - `get_template_gaps`：根据映射字段，分页检查当前纳入点位的缺失项，返回点位 ID、名称、城市、地址和缺失字段。高德之外的字段使用 `custom:门票价格`、`custom:景区等级` 等键。可纳入所选主点的子点；读取全部初始缺失页后再回填，避免更新过程中分页位移。
 - `supplement_poi`：每批最多 10 项，接收 AI 查到的值、来源 URL 和可选来源标题，记录回填时间。AI 只能补充缺失字段或模板自定义字段，不能覆盖高德已有值；原始字段不修改。补充值作为独立记录保存在当前点位中，详情弹窗可查看内容和来源；重新采集详情保留补充记录。与当前点位数据一样，重新查询或切换城市后不保留，需先导出。
 - `export_excel_template`：按 `columnMap: [{column: 1, field: "name"}, {column: 2, field: "custom:门票价格", valueType: "number"}]` 写入指定工作表的空白区域。保留原有表头、样式、列宽、其他工作表和已有公式；复制首个数据行映射列的样式及行高。数值列可显式使用 `valueType: "number"`，不合法数字会报错。禁止写入已有内容、公式或合并单元格；禁止覆盖已有文件，输出一份填写版副本。
@@ -366,7 +366,7 @@ Excel 自动导出需要绝对 `.xlsx` 路径和已存在目录，拒绝覆盖�
 
 左侧按钮改为“开始查询并采集”，逐页查询结束后自动调用现有详情/子点位/图片采集；列表上重复的“开始采集”按钮移除。查询失败或取消时不自动进入详情采集，保留已加载记录；详情阶段可用“取消采集”停止，失败记录仍可重试。范围圈选流程保持自动采集。
 
-MCP `start_query` 默认执行整个流程，同一个 operationId 覆盖查询及采集两阶段；可传 autoCollect:false 仅查询，筛选后使用 start_collection 补采。保留 start_collection 接口以兼容已有客户端和重试需求。Skill 同步更新，避免默认查询完成后重复采集。未将移除的按钮直接改名为“联网收集”；外部搜索执行方式尚未确定。
+AI/MCP `start_query` 默认只分页查询列表；只有明确传 `autoCollect:true` 才在同一个 operationId 内继续采集全部详情和关联子点。推荐先筛选，再用 `start_collection({selectionId,includeChildren:false})` 只补采入选主点；只有用户需要关联子点时才传 `includeChildren:true`。桌面界面的人工查询仍维持查询后完整采集。保留 start_collection 接口用于定向采集和失败重试。
 
 
 ## 25. 手动补录父点的范围采集
@@ -423,9 +423,9 @@ MCP新增 download_images，只在用户明确提出补图时调用，支持点�
 真实客户端查询“长沙市／景点／景区”返回199主点与235关联子点，有图点位367。首轮自动保存高德图片发现GIF原图被格式白名单拒绝及个别连接读取中断。新增GIF支持，保留所有帧的原始字节；图片临时请求／响应读取错误最多尝试3次，404等永久错误不盲目重试，取消时停止重试。测试记录与Excel副本存放本机临时目录，复测结果以本次测试报告为准，不将单一搜索条件视作长沙所有景区覆盖。
 
 
-## 33. 导出时才保存高德图片，百度批次浏览器复用
+## 33. 图片按需保存，百度批次浏览器复用
 
-查询／采集阶段仅取得图片链接。普通导出默认主景区／主点位，导出前仅下载这些行的高德图片；子点在详情另行导出，MCP parentId、childrenOnly:true同样仅下载子行。模板导出按其实际行范围下载，高德图片下载不会触发搜索引擎。
+查询／采集阶段仅取得图片链接。Excel 导出默认不下载图片；明确传入 `photoPoiIds` 时只保存指定导出行的高德原图，模板映射 `originalPhotos`、`downloadedPhotos` 或 `imageSources` 时保存实际导出行。高德图片下载不会触发搜索引擎。
 
 联网补图只由按钮或明确AI指令启动。百度每个批次共用一个浏览器及Cookie，每次景区搜索默认间隔8秒，可设3至60秒；页面资源未加载或验证超时时停止后续搜索。桌面客户端可在存储设置中配置图片浏览器代理，解决未继承开发环境代理导致CSS/JS加载失败的问题。默认不强制代理，用户填写当前网络服务器后生效。
 

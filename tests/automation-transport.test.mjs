@@ -18,7 +18,8 @@ test('bundled native stdio and CLI work without Node on PATH, preserve RPC IDs a
   const message=JSON.parse(Buffer.concat(chunks).toString('utf8'))
   if(message.method==='tools/call')calls.push(message)
   if(!('id' in message)) { notifications++; res.writeHead(202); res.end(); return }
-  res.setHeader('content-type','application/json'); res.end(JSON.stringify({jsonrpc:'2.0',id:message.id,result:message.method==='initialize'?{protocolVersion:'2025-11-25',capabilities:{tools:{}}}:{content:[{type:'text',text:'{"total":61}'}],structuredContent:{total:61},isError:false}}))
+  const structured=message.params?.name==='start_query'?{operationId:'op-1',state:'running'}:message.params?.name==='get_operation'?{id:'op-1',state:'completed',result:{total:61}}:{total:61}
+  res.setHeader('content-type','application/json'); res.end(JSON.stringify({jsonrpc:'2.0',id:message.id,result:message.method==='initialize'?{protocolVersion:'2025-11-25',capabilities:{tools:{}}}:{content:[{type:'text',text:JSON.stringify(structured)}],structuredContent:structured,isError:false}}))
  })
  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve)})
  try {
@@ -28,6 +29,7 @@ test('bundled native stdio and CLI work without Node on PATH, preserve RPC IDs a
   assert.equal(result.code,0,result.err||`native process signal: ${result.signal}`); assert.equal(result.err,''); const output=result.out.trim().split('\n').map(JSON.parse); assert.equal(output.length,2); assert.deepEqual(new Set(output.map((m)=>m.id)),new Set(['init',3])); assert.equal(notifications,1)
   const cli=await run('--cli',['--connection-file',file,'status']); assert.equal(cli.code,0); assert.equal(JSON.parse(cli.out).total,61)
   const shortCli=await run('status',['--json','--connection-file',file]); assert.equal(shortCli.code,0); assert.equal(JSON.parse(shortCli.out).total,61)
+  const waited=await run('call',['start_query','--args','{}','--wait','--timeout','5','--json','--connection-file',file]);assert.equal(waited.code,0,waited.err);assert.equal(JSON.parse(waited.out).state,'completed');assert.equal(calls.at(-1).params.name,'get_operation')
   const largeText='景区资料'.repeat(60000),argsFile=join(dir,'large-args.json');await writeFile(argsFile,JSON.stringify({text:largeText,rows:[1,2,3]}))
   const fileCall=await run('call',['supplement_pois','--args-file',argsFile,'--connection-file',file]);assert.equal(fileCall.code,0,fileCall.err)
   const stdinCall=await run('call',['supplement_pois','--stdin','--connection-file',file],JSON.stringify({text:largeText,source:'stdin'}));assert.equal(stdinCall.code,0,stdinCall.err)

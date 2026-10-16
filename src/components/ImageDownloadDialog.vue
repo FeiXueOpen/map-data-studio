@@ -30,7 +30,7 @@ async function start(){error.value='';try{if(((options.width||0)===0)!==((option
    <label class="inline-check"><input v-model="options.includeChildren" type="checkbox" :disabled="busy" />同时补充关联／范围子点位</label>
    <label>本地保存目录<input v-model="options.directory" required :disabled="busy" /></label>
    <button class="export-button" type="button" :disabled="busy" @click="choose">选择目录</button>
-   <p class="muted">每个点位以名称建文件夹，同名点位自动区分。此目录也用于导出Excel时保存高德图片，默认采集不会触发百度或必应搜图。</p>
+   <p class="muted">每个点位以名称建文件夹，同名点位自动区分。此目录也用于按需保存高德图片；查询、采集和普通Excel导出不会自动补图。</p>
    <p v-if="error" class="failed">{{ error }}</p><p v-if="browserStatus.state === 'awaiting_user'" class="area-notice" role="status">{{ browserStatus.message }}</p><p v-if="progress" role="status">{{ progress }}</p><p v-if="report" role="status">{{ report }}</p>
    <details v-for="result in results" :key="result.id"><summary>{{ result.name }}：{{ result.saved }} / {{ result.requested }} 张</summary><p>{{ result.directory }}</p><button v-if="result.directory" class="export-button" type="button" @click="reveal(result.directory)">在文件管理器中查看</button><p v-for="(failure,i) in result.failures" :key="i" class="muted">{{ failure }}</p></details>
    <button class="collect-button" type="submit" :disabled="busy || loading">{{ busy ? '正在下载…' : '开始联网补图' }}</button>

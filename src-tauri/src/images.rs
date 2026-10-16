@@ -149,9 +149,7 @@ pub async fn download_poi_images(app: AppHandle, batch_id: Option<String>, id: S
     if !["all","small","medium","large","wallpaper"].contains(&size.as_str()){return Err("搜索尺寸选项无效".into())}
     if min_height>6000 || width>6000 || height>6000 || (width==0)!=(height==0){return Err("搜索尺寸或最小高度无效".into())}
     if id.is_empty() || name.trim().is_empty() || name.len() > 500 || query.len() > 800 || !(1..=if engine == "amap" { 1000 } else { 30 }).contains(&count) || min_width > 4000 || !["amap", "bing", "baidu"].contains(&engine.as_str()) || urls.len() > 1000 { return Err("图片下载参数无效".into()); }
-    static DOWNLOAD_GATE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
     let generation = app.state::<crate::image_browser::ImageBrowserState>().generation.load(std::sync::atomic::Ordering::Relaxed);
-    let _guard = DOWNLOAD_GATE.lock().await;
     if generation != app.state::<crate::image_browser::ImageBrowserState>().generation.load(std::sync::atomic::Ordering::Relaxed) {return Err("图片下载已取消".into());}
     app.state::<crate::image_browser::ImageBrowserState>().cancelled.store(false, std::sync::atomic::Ordering::Relaxed);
     let root = PathBuf::from(directory.unwrap_or(get_image_settings(app.clone())?.directory));

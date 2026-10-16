@@ -309,12 +309,58 @@ fn cli_request(args: &[String]) -> Result<Option<Value>, String> {
         json!({"jsonrpc":"2.0","id":1,"method":method,"params":params}),
     ))
 }
+fn structured_result(response: &Value) -> Result<Value, String> {
+    if let Some(e) = response.get("error") {
+        return Err(e["message"].as_str().unwrap_or("控制请求失败").into());
+    }
+    let result = &response["result"];
+    if result["isError"] == true {
+        return Err(result["content"]
+            .as_array()
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item["text"].as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+            .unwrap_or_else(|| "工具执行失败".into()));
+    }
+    Ok(result.get("structuredContent").unwrap_or(result).clone())
+}
+async fn wait_operation(
+    client: &reqwest::Client,
+    file: &Path,
+    operation_id: &str,
+    timeout_seconds: u64,
+) -> Result<Value, String> {
+    let started = std::time::Instant::now();
+    loop {
+        let request = json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_operation","arguments":{"operationId":operation_id}}});
+        let response = rpc(client, file, &request)
+            .await?
+            .ok_or("控制服务未返回操作状态")?;
+        let operation = structured_result(&response)?;
+        match operation["state"].as_str() {
+            Some("completed") => return Ok(operation),
+            Some("failed") => return Err(operation["error"].as_str().unwrap_or("操作失败").into()),
+            Some("cancelled") => return Err("操作已取消".into()),
+            Some("running") => {}
+            _ => return Err("操作状态无效".into()),
+        }
+        if started.elapsed() >= Duration::from_secs(timeout_seconds) {
+            return Err(format!("等待操作超时（{timeout_seconds} 秒）；任务仍可能在工作台继续运行，可用 get_operation 查看"));
+        }
+        tokio::time::sleep(Duration::from_millis(750)).await;
+    }
+}
 async fn cli(
     client: &reqwest::Client,
     file: &std::path::Path,
     args: &[String],
 ) -> Result<(), String> {
     let mut args = args.to_vec();
+    let compact = args.iter().any(|arg| arg == "--json");
     args.retain(|arg| arg != "--json");
     if args.as_slice() == ["describe"] {
         println!(
@@ -362,34 +408,63 @@ async fn cli(
         println!("{}", serde_json::to_string_pretty(&json!({"ok":configured&&reachable&&source.is_some(),"version":env!("CARGO_PKG_VERSION"),"executable":std::env::current_exe().ok(),"connectionFile":file,"connectionConfigured":configured,"serviceReachable":reachable,"skillBundled":source.is_some(),"skillSource":source})).map_err(|_| "无法生成诊断结果")?);
         return Ok(());
     }
+    let mut wait = false;
+    if let Some(index) = args.iter().position(|arg| arg == "--wait") {
+        args.remove(index);
+        wait = true;
+    }
+    let mut timeout_seconds = 900u64;
+    if let Some(index) = args.iter().position(|arg| arg == "--timeout") {
+        if index + 1 >= args.len() {
+            return Err("--timeout 需要秒数".into());
+        }
+        timeout_seconds = args[index + 1]
+            .parse()
+            .map_err(|_| "--timeout 必须是秒数")?;
+        if !(1..=7200).contains(&timeout_seconds) {
+            return Err("--timeout 范围为1至7200秒".into());
+        }
+        args.drain(index..=index + 1);
+    }
+    if args.first().map(String::as_str) == Some("wait") {
+        if args.len() != 2 {
+            return Err("命令格式：wait <operationId> [--timeout 秒] [--json]".into());
+        }
+        wait_for_connection(file)?;
+        let result = wait_operation(client, file, &args[1], timeout_seconds).await?;
+        println!(
+            "{}",
+            if compact {
+                serde_json::to_string(&result)
+            } else {
+                serde_json::to_string_pretty(&result)
+            }
+            .map_err(|_| "无法读取操作结果")?
+        );
+        return Ok(());
+    }
     let Some(request) = cli_request(&args)? else {
-        println!("Map Data Studio CLI（内置，无需 Node.js）\n  status --json\n  tools --json\n  call <tool> [--args JSON | --args-file 文件 | --stdin]\n  describe --json\n  doctor --json\n  open --json\n  skill install [--client auto|all|doubao|codex|claude] --json\n兼容旧写法：--cli <命令>\n可选：--connection-file <automation-connection.json路径>\n大参数优先使用 --args-file 或 --stdin；单次输入上限 16 MiB。");
+        println!("Map Data Studio CLI（内置，无需 Node.js）\n  status --json\n  tools --json\n  call <tool> [--args JSON | --args-file 文件 | --stdin] [--wait] [--timeout 秒]\n  wait <operationId> [--timeout 秒] --json\n  describe --json\n  doctor --json\n  open --json\n  skill install [--client auto|all|doubao|codex|claude] --json\n兼容旧写法：--cli <命令>\n可选：--connection-file <automation-connection.json路径>\n大参数优先使用 --args-file 或 --stdin；单次输入上限 16 MiB。");
         return Ok(());
     };
     wait_for_connection(file)?;
     let response = rpc(client, file, &request)
         .await?
         .ok_or("控制服务未返回结果")?;
-    if let Some(e) = response.get("error") {
-        return Err(e["message"].as_str().unwrap_or("控制请求失败").into());
-    }
-    let result = &response["result"];
-    if result["isError"] == true {
-        return Err(result["content"]
-            .as_array()
-            .map(|items| {
-                items
-                    .iter()
-                    .filter_map(|item| item["text"].as_str())
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            })
-            .unwrap_or_else(|| "工具执行失败".into()));
+    let mut result = structured_result(&response)?;
+    if wait {
+        if let Some(operation_id) = result["operationId"].as_str() {
+            result = wait_operation(client, file, operation_id, timeout_seconds).await?;
+        }
     }
     println!(
         "{}",
-        serde_json::to_string_pretty(result.get("structuredContent").unwrap_or(result))
-            .map_err(|_| "无法读取控制结果")?
+        if compact {
+            serde_json::to_string(&result)
+        } else {
+            serde_json::to_string_pretty(&result)
+        }
+        .map_err(|_| "无法读取控制结果")?
     );
     Ok(())
 }
@@ -398,7 +473,7 @@ pub fn run_if_requested() -> Option<i32> {
     let mut args: Vec<_> = std::env::args().skip(1).collect();
     let mode = args.first()?.clone();
     let cli_commands = [
-        "status", "tools", "call", "describe", "doctor", "open", "skill", "help",
+        "status", "tools", "call", "wait", "describe", "doctor", "open", "skill", "help",
     ];
     if mode != "--mcp-stdio" && mode != "--cli" && !cli_commands.contains(&mode.as_str()) {
         return None;

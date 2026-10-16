@@ -33,5 +33,13 @@ async function request(command: string, provinceId?: number): Promise<Region[]> 
   }
 }
 
-export const getProvinces = () => request('get_provinces')
-export const getCities = (provinceId: number) => request('get_cities', provinceId)
+let provinceCache: Promise<Region[]> | undefined
+const cityCache = new Map<number, Promise<Region[]>>()
+export const getProvinces = () => provinceCache ??= request('get_provinces').catch((error) => { provinceCache = undefined; throw error })
+export const getCities = (provinceId: number) => {
+  const cached = cityCache.get(provinceId)
+  if (cached) return cached
+  const pending = request('get_cities', provinceId).catch((error) => { cityCache.delete(provinceId); throw error })
+  cityCache.set(provinceId, pending)
+  return pending
+}
